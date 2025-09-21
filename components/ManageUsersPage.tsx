@@ -15,7 +15,7 @@ const UserFormModal: React.FC<{
         name: user?.name || '',
         pin: user?.pin || '',
         branch: user?.branch || 'EC',
-        role: user?.role || Role.Student,
+        role: user?.role || Role.STUDENT,
         email: user?.email || '',
         parent_email: user?.parent_email || '',
         imageUrl: user?.imageUrl || '',
@@ -138,17 +138,17 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
     }, []);
 
     const { faculty, staff, students } = useMemo(() => {
-        const principal = allUsers.find(u => u.role === Role.Principal);
+        const principal = allUsers.find(u => u.role === Role.PRINCIPAL);
         return {
-            faculty: [principal, ...allUsers.filter(u => u.role === Role.Faculty)].filter(Boolean) as User[],
-            staff: allUsers.filter(u => u.role === Role.Staff),
-            students: allUsers.filter(u => u.role === Role.Student)
+            faculty: [principal, ...allUsers.filter(u => u.role === Role.HOD || u.role === Role.FACULTY)].filter(Boolean) as User[],
+            staff: allUsers.filter(u => u.role === Role.STAFF),
+            students: allUsers.filter(u => u.role === Role.STUDENT)
         };
     }, [allUsers]);
 
     // Role-based access control logic
-    const canManageFacultyOrStaff = authenticatedUser?.role === Role.Principal;
-    const canManageStudents = authenticatedUser?.role === Role.Principal || authenticatedUser?.role === Role.Faculty;
+    const canManageFacultyOrStaff = authenticatedUser?.role === Role.PRINCIPAL;
+    const canManageStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.FACULTY || authenticatedUser?.role === Role.HOD;
 
     const handleAction = (action: 'add' | 'edit' | 'delete', userToManage: User | null, requiresAuth: boolean) => {
         if (requiresAuth) {
@@ -288,13 +288,13 @@ const UserTable: React.FC<{
                                 </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                {canManage && user.role !== Role.Principal ? (
+                                {canManage && user.role !== Role.PRINCIPAL ? (
                                     <div className="flex justify-end gap-1">
                                         <button onClick={() => onEdit(user)} className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><EditIcon className="w-5 h-5"/></button>
                                         <button onClick={() => onDelete(user)} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
                                     </div>
                                 ) : (
-                                    <span className="text-slate-400 dark:text-slate-500 text-xs italic">{user.role === Role.Principal ? 'Locked' : 'No permissions'}</span>
+                                    <span className="text-slate-400 dark:text-slate-500 text-xs italic">{user.role === Role.PRINCIPAL ? 'Locked' : 'No permissions'}</span>
                                 )}
                             </td>
                         </tr>

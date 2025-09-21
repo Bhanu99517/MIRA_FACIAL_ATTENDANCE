@@ -1,10 +1,11 @@
 
 
 export enum Role {
-  Principal = 'Principal',
-  Faculty = 'Faculty',
-  Staff = 'Staff',
-  Student = 'Student',
+  PRINCIPAL = 'PRINCIPAL',
+  HOD = 'HOD',
+  FACULTY = 'FACULTY',
+  STAFF = 'STAFF',
+  STUDENT = 'STUDENT',
 }
 
 export enum Branch {
@@ -12,6 +13,8 @@ export enum Branch {
   EC = 'EC',
   CE = 'CE',
   EEE = 'EEE',
+  MECH = 'MECH',
+  IT = 'IT',
 }
 
 export interface User {

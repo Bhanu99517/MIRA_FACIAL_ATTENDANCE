@@ -21,7 +21,7 @@ const MapPinIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-const AttendanceLogPage: React.FC = () => {
+const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }> = ({ refreshDashboardStats }) => {
     const [step, setStep] = useState<'capture' | 'verifying' | 'result'>('capture');
     const [pinParts, setPinParts] = useState({ year: '23', branch: 'EC', roll: '' });
     const [student, setStudent] = useState<User | null>(null);
@@ -78,7 +78,48 @@ const AttendanceLogPage: React.FC = () => {
 
     const handleMarkAttendance = async () => {
         if(!student) return;
-        const result = await markAttendance(student.id);
+
+        let userCoordinates: { latitude: number, longitude: number } | null = null;
+        try {
+            if (navigator.geolocation) {
+                userCoordinates = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        }),
+                        (error) => reject(error),
+                        { timeout: 10000 } // Add a timeout
+                    );
+                });
+            }
+        } catch(e) {
+            let errorMessage = 'Could not get location. Marking attendance without it.';
+            let logMessage = "Could not get location";
+            
+            if (e instanceof GeolocationPositionError) {
+                logMessage = `${logMessage}: ${e.message} (code: ${e.code})`;
+                switch (e.code) {
+                    case e.PERMISSION_DENIED:
+                        errorMessage = 'Location access was denied. Marking attendance without location.';
+                        break;
+                    case e.POSITION_UNAVAILABLE:
+                        errorMessage = 'Location information is unavailable. Marking attendance without location.';
+                        break;
+                    case e.TIMEOUT:
+                        errorMessage = 'The request to get user location timed out. Marking attendance without location.';
+                        break;
+                }
+            } else if (e instanceof Error) {
+                logMessage = `${logMessage}: ${e.message}`;
+            }
+
+            console.error(logMessage, e);
+            setCameraError(errorMessage);
+        }
+
+        const result = await markAttendance(student.id, userCoordinates);
+        await refreshDashboardStats(); // Refresh dashboard stats
         const history = await getAttendanceForUser(student.id);
         setAttendanceResult(result);
         setHistoricalData(history);
@@ -325,7 +366,7 @@ const AttendanceLogPage: React.FC = () => {
                                     <Icons.whatsapp className="w-4 h-4"/>WhatsApp Opened
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <MapPinIcon className="w-4 h-4 text-slate-500"/>GPS: {attendanceResult?.location?.coordinates}
+                                    <MapPinIcon className="w-4 h-4 text-slate-500"/>GPS: {attendanceResult?.location?.coordinates || 'Not captured'}
                                 </li>
                              </ul>
                         </div>

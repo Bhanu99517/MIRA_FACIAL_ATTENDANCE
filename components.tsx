@@ -79,10 +79,11 @@ export const ActionCard: React.FC<ActionCardProps> = ({ title, description, icon
 
 export const RolePill: React.FC<{ role: Role }> = ({ role }) => {
     const roleColors: Record<Role, string> = {
-        [Role.Principal]: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300 border border-red-200 dark:border-red-500/30',
-        [Role.Faculty]: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30',
-        [Role.Staff]: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300 border border-green-200 dark:border-green-500/30',
-        [Role.Student]: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30',
+        [Role.PRINCIPAL]: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300 border border-red-200 dark:border-red-500/30',
+        [Role.HOD]: 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30',
+        [Role.FACULTY]: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30',
+        [Role.STAFF]: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300 border border-green-200 dark:border-green-500/30',
+        [Role.STUDENT]: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30',
     };
     return (
         <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${roleColors[role]}`}>

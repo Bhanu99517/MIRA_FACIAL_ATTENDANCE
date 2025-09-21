@@ -18,20 +18,39 @@ const now = new Date().toISOString();
 
 const createAvatar = (seed: string) => `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 
-const principalData = [
-    { id: 'princ_01', name: 'Dr. S. Radhika' },
-];
-
-const facultyData = [
-    { id: 'fac_01', name: 'Vidya Sagar', branch: 'EEE' },
-    { id: 'fac_02', name: 'T. Manjula', branch: 'EC' },
-    { id: 'fac_03', name: 'B. Gopala Rao', branch: 'EEE' },
-    { id: 'fac_04', name: 'Uma Shankar', branch: 'CE' },
-];
-
-const staffData = [
-    { id: 'staff_01', name: 'K. Ramesh', branch: 'Office' },
-    { id: 'staff_02', name: 'L. Sunitha', branch: 'Library' },
+const allStaffAndFaculty = [
+    // Principal
+    { id: 'princ_01', name: 'P. JANAKI DEVI', role: Role.PRINCIPAL, branch: 'ADMIN' },
+    // HODs
+    { id: 'hod_01', name: 'Dr. S.N PADMAVATHI', role: Role.HOD, branch: Branch.CS },
+    { id: 'hod_02', name: 'Dr. CH. VIDYA SAGAR', role: Role.HOD, branch: Branch.EC },
+    { id: 'hod_03', name: 'VANGALA INDIRA PRIYA DARSINI', role: Role.HOD, branch: Branch.MECH },
+    // Faculty
+    { id: 'fac_01', name: 'ARCOT VIDYA SAGAR', role: Role.FACULTY, branch: Branch.CS },
+    { id: 'fac_02', name: 'J.ANAND KUMAR', role: Role.FACULTY, branch: Branch.EC },
+    { id: 'fac_03', name: 'B. SREE LAKSHMI', role: Role.FACULTY, branch: Branch.MECH },
+    { id: 'fac_04', name: 'BIDARUKOTA SHAKTHI KIRAN', role: Role.FACULTY, branch: Branch.IT },
+    { id: 'fac_05', name: 'HARESH NANDA', role: Role.FACULTY, branch: Branch.CS },
+    { id: 'fac_06', name: 'NAMBURU GOWTAMI', role: Role.FACULTY, branch: Branch.EC },
+    { id: 'fac_07', name: 'B.GOPALA RAO', role: Role.FACULTY, branch: Branch.MECH },
+    { id: 'fac_08', name: 'G.SADANANDAM', role: Role.FACULTY, branch: Branch.IT },
+    { id: 'fac_09', name: 'TULLURI MANJOLA', role: Role.FACULTY, branch: Branch.EC },
+    { id: 'fac_10', name: 'UMASHANKAR', role: Role.FACULTY, branch: Branch.IT },
+    { id: 'fac_11', name: 'DONDILETI SRINIVASA REDDY', role: Role.FACULTY, branch: Branch.CS },
+    { id: 'fac_12', name: 'WASEEM RUKSANA', role: Role.FACULTY, branch: Branch.EC },
+    { id: 'fac_13', name: 'G.RAJSHEKHARA REDDY', role: Role.FACULTY, branch: Branch.MECH },
+    // Staff
+    { id: 'staff_01', name: 'G.VENKAT REDDY', role: Role.STAFF, branch: 'Library' }, // Librarian
+    { id: 'staff_02', name: 'D. SUBRAMANYAM', role: Role.STAFF, branch: 'Labs' }, // Senior Instructor
+    { id: 'staff_03', name: 'B. SRINIVAS GOUD', role: Role.STAFF, branch: 'Labs' }, // Lab Attender
+    { id: 'staff_04', name: 'AFROZE JABEEN', role: Role.STAFF, branch: 'Office' }, // Admin Officer
+    { id: 'staff_05', name: 'C.SATYAVATHI', role: Role.STAFF, branch: 'Office' }, // Office Superintendent
+    { id: 'staff_06', name: 'MANDALA LAXMI DEVI', role: Role.STAFF, branch: 'Office' }, // Senior Assistant
+    { id: 'staff_07', name: 'G.V.BABITHA', role: Role.STAFF, branch: 'Office' }, // Senior Assistant
+    { id: 'staff_08', name: 'MATHANGI JAGDESHWAR RAO', role: Role.STAFF, branch: 'Office' }, // Junior Assistant
+    { id: 'staff_09', name: 'K. SAILU', role: Role.STAFF, branch: 'Office' }, // Junior Assistant
+    { id: 'staff_10', name: 'NAYAKOTI SUPRIYA', role: Role.STAFF, branch: 'Office' }, // Junior Assistant
+    { id: 'staff_11', name: 'YERRAGOLLA NARSIMLU', role: Role.STAFF, branch: 'Office' }, // Office Subordinate
 ];
 
 const studentData = [
@@ -97,42 +116,27 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
     MOCK_USERS = storage.getItem<User[]>('MOCK_USERS')!;
 } else {
     MOCK_USERS = [
-        ...principalData.map(p => ({
-            id: p.id,
-            pin: `PRI-${p.id.split('_')[1]}`,
-            name: p.name,
-            role: Role.Principal,
-            branch: 'ADMIN',
-            email: `${p.name.toLowerCase().replace(/\s+/g, '.')}@mira.edu`,
-            imageUrl: createAvatar(p.name),
-            password: 'qwe123mnb890',
-            email_verified: true,
-            parent_email_verified: false,
-        })),
-        ...facultyData.map(f => ({
-            id: f.id,
-            pin: `FAC-${f.id.split('_')[1]}`,
-            name: f.name,
-            role: Role.Faculty,
-            branch: f.branch,
-            email: `${f.name.toLowerCase().replace(/\s+/g, '.')}@mira.edu`,
-            imageUrl: createAvatar(f.name),
-            password: 'qwe123mnb890',
-            email_verified: true,
-            parent_email_verified: false,
-        })),
-        ...staffData.map(s => ({
-            id: s.id,
-            pin: `STF-${s.id.split('_')[1]}`,
-            name: s.name,
-            role: Role.Staff,
-            branch: s.branch,
-            email: `${s.name.toLowerCase().replace(/\s+/g, '.')}@mira.edu`,
-            imageUrl: createAvatar(s.name),
-            password: 'qwe123mnb890',
-            email_verified: Math.random() > 0.5,
-            parent_email_verified: false,
-        })),
+        ...allStaffAndFaculty.map(p => {
+            const pinPrefixes: Record<string, string> = {
+                [Role.PRINCIPAL]: 'PRI',
+                [Role.HOD]: 'HOD',
+                [Role.FACULTY]: 'FAC',
+                [Role.STAFF]: 'STF',
+            };
+            const pinPrefix = pinPrefixes[p.role] || 'USR';
+            return {
+                id: p.id,
+                pin: `${pinPrefix}-${p.id.split('_')[1]}`,
+                name: p.name,
+                role: p.role,
+                branch: p.branch,
+                email: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.')}@mira.edu`,
+                imageUrl: createAvatar(p.name),
+                password: 'qwe123mnb890',
+                email_verified: true,
+                parent_email_verified: false,
+            };
+        }),
         ...studentData.map(s => {
             const pinParts = s.pin.split('-');
             const yearAndCollege = pinParts[0];
@@ -144,7 +148,7 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
                 id: `stud-${pinParts[1].toLowerCase()}-${pinParts[2]}`,
                 pin: s.pin,
                 name: s.name,
-                role: Role.Student,
+                role: Role.STUDENT,
                 branch: pinParts[1] as Branch,
                 year: 1,
                 college_code: yearAndCollege.substring(2),
@@ -165,8 +169,9 @@ const generateInitialData = () => {
     if (!storage.getItem('INITIAL_DATA_GENERATED')) {
         let MOCK_ATTENDANCE: AttendanceRecord[] = [];
         const today = new Date();
-        MOCK_USERS.filter(u => u.role === Role.Student || u.role === Role.Faculty).forEach(user => {
-            for(let i = 0; i < 90; i++){
+        MOCK_USERS.filter(u => u.role === Role.STUDENT || u.role === Role.FACULTY).forEach(user => {
+            // Start from i = 1 to skip generating attendance for today.
+            for(let i = 1; i < 90; i++){
                 const date = new Date();
                 date.setDate(today.getDate() - i);
                 const dateString = date.toISOString().split('T')[0];
@@ -203,12 +208,12 @@ const generateInitialData = () => {
             { id: 'tt2', branch: Branch.CS, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'Admin' },
         ]);
         storage.setItem('MOCK_FEEDBACK', [
-            { id: 'fb1', userId: 'fac_02', userName: 'T. Manjula', userRole: Role.Faculty, type: 'Suggestion', message: 'The attendance report page could use a date range filter.', status: 'New', submitted_at: now, is_anonymous: false},
-            { id: 'fb2', userId: 'stud-ec-005', userName: 'KAMMARI UDAY TEJA', userRole: Role.Student, type: 'Bug', message: 'My profile picture is not updating.', status: 'In Progress', submitted_at: now, is_anonymous: false},
+            { id: 'fb1', userId: 'fac_09', userName: 'TULLURI MANJOLA', userRole: Role.FACULTY, type: 'Suggestion', message: 'The attendance report page could use a date range filter.', status: 'New', submitted_at: now, is_anonymous: false},
+            { id: 'fb2', userId: 'stud-ec-005', userName: 'KAMMARI UDAY TEJA', userRole: Role.STUDENT, type: 'Bug', message: 'My profile picture is not updating.', status: 'In Progress', submitted_at: now, is_anonymous: false},
         ]);
 
         MOCK_USERS.forEach(u => {
-            storage.setItem(`MOCK_SETTINGS_${u.id}`, { userId: u.id, notifications: { email: { attendance: true, applications: true }, whatsapp: { attendance: u.role === Role.Student } }, profile_private: false });
+            storage.setItem(`MOCK_SETTINGS_${u.id}`, { userId: u.id, notifications: { email: { attendance: true, applications: true }, whatsapp: { attendance: u.role === Role.STUDENT } }, profile_private: false });
         });
         
         storage.setItem('INITIAL_DATA_GENERATED', true);
@@ -222,7 +227,7 @@ const delay = <T,>(data: T, ms = 300): Promise<T> => new Promise(res => setTimeo
 // --- EXPORTED API FUNCTIONS ---
 
 export const login = async (pin: string, pass: string): Promise<User | null> => {
-    const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.password === pass && (u.role === Role.Principal || u.role === Role.Faculty));
+    const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.password === pass && (u.role === Role.PRINCIPAL || u.role === Role.FACULTY || u.role === Role.HOD || u.role === Role.STAFF));
     return delay(user || null);
 };
 
@@ -234,7 +239,7 @@ export const sendEmail = async (to: string, subject: string, body: string): Prom
 };
   
 export const getStudentByPin = async (pin: string): Promise<User | null> => {
-    const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.role === Role.Student);
+    const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.role === Role.STUDENT);
     return delay(user || null, 200);
 };
 
@@ -245,9 +250,9 @@ export const getUserByPin = async (pin: string): Promise<User | null> => {
 
 export const getDashboardStats = async () => {
     const today = new Date().toISOString().split('T')[0];
-    const todaysAttendance = (storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.date === today && MOCK_USERS.find(u => u.id === a.userId)?.role === Role.Student);
-    const totalStudents = MOCK_USERS.filter(u => u.role === Role.Student).length;
-    const presentCount = todaysAttendance.length;
+    const todaysAttendance = (storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.date === today && MOCK_USERS.find(u => u.id === a.userId)?.role === Role.STUDENT);
+    const totalStudents = MOCK_USERS.filter(u => u.role === Role.STUDENT).length;
+    const presentCount = todaysAttendance.filter(a => a.status === 'Present').length;
     const absentCount = totalStudents - presentCount;
     const attendancePercentage = totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
     return delay({ presentToday: presentCount, absentToday: absentCount, attendancePercentage });
@@ -261,7 +266,25 @@ export const getAttendanceForUser = async (userId: string): Promise<AttendanceRe
     return delay((storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.userId === userId));
 };
 
-export const markAttendance = async (userId: string): Promise<AttendanceRecord> => {
+const CAMPUS_LAT = 18.4550;
+const CAMPUS_LON = 79.5217;
+const CAMPUS_RADIUS_KM = 0.5; // 500 meters
+
+// Haversine distance function
+const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+};
+
+export const markAttendance = async (userId: string, coordinates: { latitude: number, longitude: number } | null): Promise<AttendanceRecord> => {
     const today = new Date();
     const dateString = today.toISOString().split('T')[0];
     const user = MOCK_USERS.find(u => u.id === userId);
@@ -270,8 +293,30 @@ export const markAttendance = async (userId: string): Promise<AttendanceRecord> 
     const existingRecord = allAttendance.find(a => a.userId === userId && a.date === dateString);
     if(existingRecord) return delay(existingRecord);
 
+    let locationStatus: 'On-Campus' | 'Off-Campus' = 'Off-Campus';
+    let locationString: string | undefined;
+
+    if (coordinates) {
+        const distance = getDistanceInKm(coordinates.latitude, coordinates.longitude, CAMPUS_LAT, CAMPUS_LON);
+        if (distance <= CAMPUS_RADIUS_KM) {
+            locationStatus = 'On-Campus';
+        }
+        locationString = `${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`;
+    }
+
     const newRecord: AttendanceRecord = {
-        id: `${userId}-${dateString}`, userId, userName: user.name, userPin: user.pin, userAvatar: user.imageUrl || createAvatar(user.name), date: dateString, status: 'Present', timestamp: today.toTimeString().split(' ')[0], location: { status: 'On-Campus', coordinates: '18.4550, 79.5217' }
+        id: `${userId}-${dateString}`, 
+        userId, 
+        userName: user.name, 
+        userPin: user.pin, 
+        userAvatar: user.imageUrl || createAvatar(user.name), 
+        date: dateString, 
+        status: 'Present', 
+        timestamp: today.toTimeString().split(' ')[0], 
+        location: { 
+            status: locationStatus, 
+            coordinates: locationString 
+        }
     };
     allAttendance.unshift(newRecord);
     storage.setItem('MOCK_ATTENDANCE', allAttendance);
@@ -317,7 +362,7 @@ export const deleteUser = async (id: string): Promise<{ success: boolean }> => {
     return delay({ success });
 };
 
-export const getFaculty = async(): Promise<User[]> => delay(MOCK_USERS.filter(u => u.role === Role.Faculty || u.role === Role.Principal));
+export const getFaculty = async(): Promise<User[]> => delay(MOCK_USERS.filter(u => u.role === Role.FACULTY || u.role === Role.PRINCIPAL || u.role === Role.HOD));
 
 export const getApplications = async (status?: ApplicationStatus): Promise<Application[]> => {
     let apps = storage.getItem<Application[]>('MOCK_APPLICATIONS') || [];

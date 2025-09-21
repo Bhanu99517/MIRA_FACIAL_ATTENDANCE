@@ -60,14 +60,14 @@ const ResultsDisplay: React.FC<{ result: SBTETResult }> = ({ result }) => {
 
 
 const SBTETResultsPage: React.FC<{ user: User }> = ({ user }) => {
-    const [pin, setPin] = useState(user.role === Role.Student ? user.pin : '');
+    const [pin, setPin] = useState(user.role === Role.STUDENT ? user.pin : '');
     const [semester, setSemester] = useState(1);
     const [result, setResult] = useState<SBTETResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [searchedUser, setSearchedUser] = useState<User | null>(user);
 
-    const isAdmin = user.role === Role.Principal || user.role === Role.Faculty;
+    const isAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD;
 
     useEffect(() => {
         if (!isAdmin) {

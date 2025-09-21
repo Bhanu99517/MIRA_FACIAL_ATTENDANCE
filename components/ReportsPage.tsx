@@ -4,7 +4,7 @@ import { getUsers, getAttendanceForDate } from '../services';
 import type { User, AttendanceRecord } from '../types';
 import { Role } from '../types';
 
-const BRANCH_OPTIONS = ['CS', 'EC', 'CE', 'EEE', 'Faculty'];
+const BRANCH_OPTIONS = ['All Students', 'CS', 'EC', 'CE', 'EEE', 'MECH', 'IT', 'Faculty'];
 
 const StudentGrid: React.FC<{ users: User[], attendanceMap: Map<string, AttendanceRecord> }> = ({ users, attendanceMap }) => (
     <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
@@ -14,7 +14,7 @@ const StudentGrid: React.FC<{ users: User[], attendanceMap: Map<string, Attendan
             return (
                 <div 
                     key={student.id} 
-                    title={`${student.name} - ${isPresent ? `Present${record?.timestamp ? ` at ${record.timestamp}` : ''}` : 'Absent'}`}
+                    title={`${student.name} - ${isPresent ? `Present${record?.timestamp ? ` at ${record.timestamp}` : ''}${record?.location ? ` (${record.location.status})` : ''}` : 'Absent'}`}
                     className={`relative h-12 w-12 flex items-center justify-center rounded-lg text-sm font-mono transition-all duration-200 border-2 ${isPresent ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 border-green-200 dark:border-green-800' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-200 dark:border-red-800'}`}
                 >
                     {student.pin.slice(-3)}
@@ -42,8 +42,11 @@ const FacultyList: React.FC<{ users: User[], attendanceMap: Map<string, Attendan
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status === 'Present' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>
                             {status}
                         </span>
-                        {status === 'Present' && record?.timestamp && (
-                           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{record.timestamp}</p>
+                        {status === 'Present' && (
+                           <>
+                             {record?.timestamp && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{record.timestamp}</p>}
+                             {record?.location?.status && <p className="text-xs text-slate-500 dark:text-slate-400">{record.location.status}{record.location.coordinates ? ` - ${record.location.coordinates}` : ''}</p>}
+                           </>
                         )}
                     </div>
                 </li>
@@ -71,7 +74,7 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 
 const ReportsPage: React.FC = () => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [branchFilter, setBranchFilter] = useState('EC');
+    const [branchFilter, setBranchFilter] = useState('All Students');
     const [search, setSearch] = useState('');
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -90,11 +93,16 @@ const ReportsPage: React.FC = () => {
 
     const { filteredUsers, attendanceMap, presentCount, totalCount } = useMemo(() => {
         const isFacultyView = branchFilter === 'Faculty';
-        const targetRole = isFacultyView ? Role.Faculty : Role.Student;
         
-        let users = allUsers.filter(u => 
-            isFacultyView ? u.role === targetRole || u.role === Role.Principal : u.role === targetRole && u.branch === branchFilter
-        );
+        let users = allUsers.filter(u => {
+            if (isFacultyView) {
+                return u.role === Role.FACULTY || u.role === Role.PRINCIPAL || u.role === Role.HOD;
+            }
+            if (branchFilter === 'All Students') {
+                return u.role === Role.STUDENT;
+            }
+            return u.role === Role.STUDENT && u.branch === branchFilter;
+        });
         
         if (search) {
             const normalizedSearch = search.toLowerCase().replace(/-/g, '');

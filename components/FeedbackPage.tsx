@@ -140,7 +140,7 @@ const FeedbackPage: React.FC<{ user: User }> = ({ user }) => {
         fetchAllFeedback();
     };
     
-    const isAdmin = user.role === Role.Principal;
+    const isAdmin = user.role === Role.PRINCIPAL;
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">

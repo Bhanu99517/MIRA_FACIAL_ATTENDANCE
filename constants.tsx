@@ -3,55 +3,21 @@ import { Page } from './types';
 
 export const Icons = {
   logo: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} viewBox="0 0 64 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg {...props} viewBox="0 0 52 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-          <linearGradient id="mira-silver" x1="0.5" y1="0" x2="0.5" y2="1">
-              <stop stopColor="#E5E7EB"/>
-              <stop offset="1" stopColor="#9CA3AF"/>
+          <linearGradient id="logo-gradient-primary" x1="0" y1="0" x2="1" y2="1">
+              <stop stopColor="#38bdf8"/>
+              <stop offset="1" stopColor="#0369a1"/>
           </linearGradient>
-          <linearGradient id="mira-cyan" x1="0" y1="0" x2="1" y2="1">
-              <stop stopColor="#22D3EE"/>
-              <stop offset="1" stopColor="#0891B2"/>
+          <linearGradient id="logo-gradient-accent" x1="1" y1="0" x2="0" y2="1">
+              <stop stopColor="#f472b6"/>
+              <stop offset="1" stopColor="#ec4899"/>
           </linearGradient>
       </defs>
-
-      {/* M Silver Base */}
-      <path d="M2,50 V2 L12,2 L32,22 L52,2 L62,2 V50 H52 L32,30 L12,50 H2Z" fill="url(#mira-silver)" />
-
-      {/* Cyan Inlay */}
-      <path d="M12 2L32 22L52 2L46 2L32 16L18 2H12Z M24 25L40 25V38L32 46L24 38V25Z" fill="url(#mira-cyan)" fillRule="evenodd" />
-      
-      {/* Face circuit */}
-      <g stroke="#FFFFFF" strokeOpacity="0.9" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-          {/* Main face frame */}
-          <path d="M26,28 H38 V34 C38,36.5 35.5,38 32,38 C28.5,38 26,36.5 26,34 V28 Z" fill="none"/>
-          
-          {/* Eyes */}
-          <path d="M29,31 H31"/>
-          <path d="M33,31 H35"/>
-          
-          {/* Top circuits */}
-          <path d="M32,28 V25"/>
-          <path d="M28,28 L26,26"/>
-          <path d="M36,28 L38,26"/>
-
-          {/* Side circuits */}
-          <path d="M26,30 V26"/>
-          <path d="M40,32 H38"/>
-          <path d="M24,32 H26"/>
-          <path d="M26,35 V38"/>
-          <path d="M38,35 V38"/>
-
-          {/* Bottom circuits */}
-          <path d="M32,38 V42"/>
-          <path d="M29,38 L28,40 V42"/>
-          <path d="M35,38 L36,40 V42"/>
-          
-          {/* Dots under chin */}
-          <circle cx="29" cy="40" r="0.7" fill="white"/>
-          <circle cx="32" cy="40" r="0.7" fill="white"/>
-          <circle cx="35" cy="40" r="0.7" fill="white"/>
-      </g>
+      <path d="M2 46L2 2L26 26L2 46Z" fill="url(#logo-gradient-primary)"/>
+      <path d="M50 2L50 46L26 26L50 2Z" fill="url(#logo-gradient-accent)"/>
+      <path d="M26 34C29.3137 34 32 31.3137 32 28C32 24.6863 29.3137 22 26 22C22.6863 22 20 24.6863 20 28C20 31.3137 22.6863 34 26 34Z" fill="white" fillOpacity="0.2"/>
+      <circle cx="26" cy="28" r="3" fill="white"/>
   </svg>
   ),
   dashboard: (props: React.SVGProps<SVGSVGElement>) => (

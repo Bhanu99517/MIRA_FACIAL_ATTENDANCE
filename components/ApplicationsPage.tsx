@@ -227,9 +227,10 @@ const StatusChecker: React.FC = () => {
     );
 };
 
-const AdminView: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'manage' | 'leave' | 'certificate' | 'status'>('manage');
-    const [isSyncing, setIsSyncing] = useState(false);
+const AdminView: React.FC<{ user: User }> = ({ user }) => {
+    const [activeTab, setActiveTab] = useState<'manage' | 'leave' | 'certificate' | 'status'>(
+        user.role === Role.PRINCIPAL ? 'manage' : 'leave'
+    );
     const [applications, setApplications] = useState<Application[]>([]);
     const [loadingApps, setLoadingApps] = useState(true);
 
@@ -245,15 +246,7 @@ const AdminView: React.FC = () => {
     const handleApplicationSubmitted = (app: Application) => {
         alert(`Application for ${app.type} submitted successfully for PIN: ${app.pin}!`);
         fetchAllApplications();
-        setActiveTab('manage');
-    };
-
-    const handleSync = () => {
-        setIsSyncing(true);
-        setTimeout(() => {
-            setIsSyncing(false);
-            alert("Successfully synced application data with Google Sheets for bhanu99517@gmail.com.");
-        }, 2000);
+        setActiveTab(user.role === Role.PRINCIPAL ? 'manage' : 'leave');
     };
 
     const handleStatusChange = async (app: Application, newStatus: ApplicationStatus.APPROVED | ApplicationStatus.REJECTED) => {
@@ -286,21 +279,15 @@ const AdminView: React.FC = () => {
                     </h2>
                     <p className="text-slate-500 dark:text-slate-400">Process and manage all student and faculty applications.</p>
                 </div>
-                <button 
-                    onClick={handleSync} 
-                    disabled={isSyncing} 
-                    className="font-semibold py-2 px-4 rounded-lg transition-colors bg-green-600 text-white hover:bg-green-700 flex items-center justify-center gap-2 shadow-lg hover:shadow-green-500/50 disabled:bg-slate-400 dark:disabled:bg-slate-600"
-                >
-                    <Icons.googleSheet className="w-5 h-5" />
-                    {isSyncing ? 'Syncing...' : 'Sync with Google Sheets'}
-                </button>
             </div>
              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
                 <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
                     <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                        <button onClick={() => setActiveTab('manage')} className={`${activeTab === 'manage' ? 'border-primary-500 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-200'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
-                            Manage Pending <span className="ml-1.5 rounded-full bg-primary-100 dark:bg-primary-900/50 px-2 py-0.5 text-xs text-primary-600 dark:text-primary-300">{pendingApplications.length}</span>
-                        </button>
+                         {user.role === Role.PRINCIPAL && (
+                            <button onClick={() => setActiveTab('manage')} className={`${activeTab === 'manage' ? 'border-primary-500 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-200'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                                Manage Pending <span className="ml-1.5 rounded-full bg-primary-100 dark:bg-primary-900/50 px-2 py-0.5 text-xs text-primary-600 dark:text-primary-300">{pendingApplications.length}</span>
+                            </button>
+                        )}
                         <button onClick={() => setActiveTab('leave')} className={`${activeTab === 'leave' ? 'border-primary-500 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-200'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
                             New Leave Request
                         </button>
@@ -313,7 +300,7 @@ const AdminView: React.FC = () => {
                     </nav>
                 </div>
                 <div>
-                    {activeTab === 'manage' && (
+                    {activeTab === 'manage' && user.role === Role.PRINCIPAL && (
                         <div className="animate-fade-in">
                             <h3 className="text-lg font-semibold mb-4">Pending Applications</h3>
                             {loadingApps && <p>Loading applications...</p>}
@@ -491,13 +478,13 @@ const ApplicationsPage: React.FC<{ user: User | null }> = ({ user }) => {
         return <div className="p-6 text-center">Loading user data...</div>;
     }
 
-    const isStudent = user.role === Role.Student;
+    const isStudent = user.role === Role.STUDENT;
 
     if (isStudent) {
         return <StudentView user={user} />;
     } else {
         // Principal, Faculty, Staff get the admin view
-        return <AdminView />;
+        return <AdminView user={user} />;
     }
 };
 

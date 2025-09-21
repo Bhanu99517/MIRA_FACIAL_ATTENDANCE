@@ -14,7 +14,7 @@ const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setModalOpen] = useState(false);
 
-    const isAdmin = user.role === Role.Principal || user.role === Role.Faculty;
+    const isAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD;
 
     useEffect(() => {
         setLoading(true);
@@ -53,6 +53,8 @@ const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
                            <option value="EC">EC</option>
                            <option value="CE">CE</option>
                            <option value="EEE">EEE</option>
+                           <option value="MECH">MECH</option>
+                           <option value="IT">IT</option>
                         </select>
                     </div>
                      <div>
