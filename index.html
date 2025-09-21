@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mira Attendance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'primary': {
+                '50': '#f0f0ff',
+                '100': '#e0e0ff',
+                '200': '#c4c6ff',
+                '300': '#a9a9ff',
+                '400': '#8e8dff',
+                '500': '#726dff',
+                '600': '#5b52ff',
+                '700': '#4538ff',
+                '800': '#3122ff',
+                '900': '#1b0aff',
+                '950': '#0d00e6'
+              },
+              'accent': {
+                '50': '#ecfeff',
+                '100': '#cffafe',
+                '200': '#a5f3fc',
+                '300': '#67e8f9',
+                '400': '#22d3ee',
+                '500': '#06b6d4',
+                '600': '#0891b2',
+                '700': '#0e7490',
+                '800': '#155e75',
+                '900': '#164e63',
+              },
+            },
+            keyframes: {
+              'gradient-bg': {
+                '0%, 100%': { backgroundPosition: '0% 50%' },
+                '50%': { backgroundPosition: '100% 50%' },
+              },
+              'fade-in': {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              'fade-in-down': {
+                '0%': { opacity: '0', transform: 'translateY(-10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              'pulse-faint': {
+                '0%, 100%': { opacity: '0.7' },
+                '50%': { opacity: '1' },
+              },
+              'logo-breath': {
+                '0%, 100%': { transform: 'scale(1)' },
+                '50%': { transform: 'scale(1.05)' },
+              },
+            },
+            animation: {
+              'gradient-bg': 'gradient-bg 15s ease infinite',
+              'fade-in': 'fade-in 0.5s ease-out',
+              'fade-in-down': 'fade-in-down 0.5s ease-out',
+              'pulse-faint': 'pulse-faint 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'logo-breath': 'logo-breath 4s ease-in-out infinite',
+            },
+            backgroundImage: {
+              'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+            },
+          },
+        },
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .sidebar-scroll::-webkit-scrollbar {
+        width: 4px;
+      }
+      .sidebar-scroll::-webkit-scrollbar-thumb {
+        background-color: #4b5563;
+        border-radius: 20px;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "recharts": "https://aistudiocdn.com/recharts@^3.2.1",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
