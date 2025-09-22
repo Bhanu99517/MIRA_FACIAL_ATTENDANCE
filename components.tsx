@@ -3,11 +3,11 @@ import { Icons } from './constants';
 import { Role } from './types';
 
 export const SplashScreen: React.FC = () => (
-  <div className="flex h-screen w-screen items-center justify-center bg-slate-900">
-    <div className="text-center animate-fade-in">
-      <Icons.logo className="h-24 w-24 text-primary-500 mx-auto animate-pulse-faint" />
-      <h1 className="mt-4 text-4xl font-bold text-white tracking-tight">Mira Attendance</h1>
-      <p className="text-slate-400">Next-Gen Attendance Management</p>
+  <div className="flex h-screen w-screen items-center justify-center bg-slate-900 overflow-hidden">
+    <div className="text-center">
+      <Icons.logo className="h-24 w-24 text-primary-500 mx-auto animate-fade-in-down" />
+      <h1 className="mt-4 text-4xl font-bold text-white tracking-tight animate-fade-in-down [animation-delay:200ms]">Mira Attendance</h1>
+      <p className="text-slate-400 animate-fade-in-down [animation-delay:400ms]">Next-Gen Attendance Management</p>
     </div>
   </div>
 );

@@ -50,16 +50,17 @@ const AttendanceTrendChart: React.FC<{ data: any[] }> = ({ data }) => {
 
 const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }> = ({ refreshDashboardStats }) => {
     const [step, setStep] = useState<'capture' | 'verifying' | 'result'>('capture');
-    const [pinParts, setPinParts] = useState({ year: '23', branch: 'EC', roll: '' });
+    const [pinParts, setPinParts] = useState({ prefix: '23210', branch: 'EC', roll: '' });
     const [student, setStudent] = useState<User | null>(null);
     const [attendanceResult, setAttendanceResult] = useState<AttendanceRecord | null>(null);
     const [historicalData, setHistoricalData] = useState<AttendanceRecord[]>([]);
     const [cameraStatus, setCameraStatus] = useState<'idle' | 'aligning' | 'liveness' | 'verifying' | 'failed' | 'retry'>('idle');
     const [cameraError, setCameraError] = useState('');
     const [alreadyMarked, setAlreadyMarked] = useState(false);
+    const [locationError, setLocationError] = useState('');
 
     const videoRef = useRef<HTMLVideoElement>(null);
-    const fullPin = useMemo(() => `23210-${pinParts.branch}-${pinParts.roll}`, [pinParts]);
+    const fullPin = useMemo(() => `${pinParts.prefix}-${pinParts.branch}-${pinParts.roll}`, [pinParts]);
 
     const handlePinChange = useCallback(async (newPin: string) => {
         setAlreadyMarked(false);
@@ -68,7 +69,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         setPinParts(p => ({...p, roll}));
 
         if (roll.length === 3) {
-            const user = await getStudentByPin(`23210-${pinParts.branch}-${roll}`);
+            const user = await getStudentByPin(`${pinParts.prefix}-${pinParts.branch}-${roll}`);
             if (user) {
                 const todaysRecord = await getTodaysAttendanceForUser(user.id);
                 if (todaysRecord) {
@@ -83,7 +84,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         } else {
             setStudent(null);
         }
-    }, [pinParts.branch]);
+    }, [pinParts.prefix, pinParts.branch]);
 
     const startCamera = async () => {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -166,8 +167,8 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                 logMessage = `${logMessage}: ${e.message}`;
             }
 
-            console.error(logMessage, e);
-            setCameraError(errorMessage);
+            console.error(logMessage);
+            setLocationError(errorMessage);
         }
 
         const result = await markAttendance(student.id, userCoordinates);
@@ -186,17 +187,26 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         // --- Send Notifications ---
         const notificationBody = `Dear Parent/Student,\n\nThis is to inform you that attendance for ${student.name} (PIN: ${student.pin}) has been marked as PRESENT.\n\nTimestamp: ${result.timestamp}\nLocation Status: ${result.location?.status} (${result.location?.coordinates})\n\nRegards,\nMira Attendance System`;
         
+        // Use a fire-and-forget approach with error handling to avoid unhandled promise rejections
+        const sendNotification = async (email: string, subject: string, body: string) => {
+            try {
+                await sendEmail(email, subject, body);
+            } catch (error) {
+                console.error(`Failed to send notification email to ${email}:`, error);
+            }
+        };
+        
         // Email Notifications
         if (student.parent_email && student.parent_email_verified) {
-            sendEmail(student.parent_email, `Attendance Marked for ${student.name}`, notificationBody);
+            sendNotification(student.parent_email, `Attendance Marked for ${student.name}`, notificationBody);
         }
         if (student.email && student.email_verified) {
-             sendEmail(student.email, `Your Attendance has been Marked`, notificationBody);
+             sendNotification(student.email, `Your Attendance has been Marked`, notificationBody);
         }
 
         // WhatsApp Notification to a fixed number
         const hardcodedPhoneNumber = '919347856661';
-        const whatsappMessage = `Attendance for ${student.name} (PIN: ${student.pin}) has been marked PRESENT at ${result.timestamp}.`;
+        const whatsappMessage = `Attendance for ${student.name} (PIN: ${student.pin}) has been marked PRESENT at ${result.timestamp}. Location: ${result.location?.status || 'N/A'}${result.location?.coordinates ? ` (${result.location.coordinates})` : ''}.`;
         const whatsappUrl = `https://wa.me/${hardcodedPhoneNumber}?text=${encodeURIComponent(whatsappMessage)}`;
         window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     };
@@ -204,12 +214,13 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
     const reset = () => {
         setStep('capture');
         setStudent(null);
-        setPinParts({ year: '23', branch: 'EC', roll: '' });
+        setPinParts({ prefix: '23210', branch: 'EC', roll: '' });
         setAttendanceResult(null);
         setHistoricalData([]);
         setCameraStatus('idle');
         setCameraError('');
         setAlreadyMarked(false);
+        setLocationError('');
     };
     
     // --- Result View Components & Data ---
@@ -351,9 +362,28 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg text-center">
                     <Icons.checkCircle className="h-16 w-16 text-green-500 mx-auto" />
                     <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Attendance Marked for {student?.name}!</h2>
-                    <p className="text-slate-600 dark:text-slate-400">
-                        Recorded at {attendanceResult?.timestamp} | Geo-Fence: <span className="font-semibold text-green-600">{attendanceResult?.location?.status}</span>
-                    </p>
+                    <div className="mt-2 space-y-1 text-slate-600 dark:text-slate-400 text-sm">
+                        <p>
+                            Recorded at: <span className="font-semibold text-slate-700 dark:text-slate-200">{attendanceResult?.timestamp}</span>
+                        </p>
+                        <p>
+                            Geo-Fence: <span className="font-semibold text-green-600">{attendanceResult?.location?.status}</span>
+                        </p>
+                        {attendanceResult?.location?.coordinates && (
+                            <p className="flex items-center justify-center gap-1">
+                                <MapPinIcon className="w-4 h-4" /> Coordinates: <span className="font-semibold text-slate-700 dark:text-slate-200 font-mono">{attendanceResult.location.coordinates}</span>
+                            </p>
+                        )}
+                    </div>
+                    {locationError && (
+                        <div className="mt-4 text-sm text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 p-3 rounded-lg flex gap-3 items-start text-left">
+                            <MapPinIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <strong className="font-semibold">Location Notice</strong>
+                                <p>{locationError}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -475,12 +505,28 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                 
                 <div className="mt-6">
                     <div className="group flex items-center w-full bg-slate-200/20 dark:bg-slate-900/30 border border-slate-400 dark:border-slate-600 rounded-lg p-3 text-xl font-mono tracking-wider focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500/50 transition-all">
-                        <span className="text-slate-500 dark:text-slate-400">23210</span>
+                        <select
+                            value={pinParts.prefix}
+                            onChange={e => {
+                                setStudent(null);
+                                setAlreadyMarked(false);
+                                setPinParts(p => ({ ...p, prefix: e.target.value, roll: '' }));
+                            }}
+                            className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold"
+                        >
+                            {['25210', '24210', '23210', '22210', '21210'].map(prefix => (
+                                <option key={prefix} value={prefix} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{prefix}</option>
+                            ))}
+                        </select>
                         <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
                         
                         <select
                             value={pinParts.branch}
-                            onChange={e => {setStudent(null); setPinParts(p => ({...p, branch: e.target.value, roll: ''}))}}
+                            onChange={e => {
+                                setStudent(null);
+                                setAlreadyMarked(false);
+                                setPinParts(p => ({...p, branch: e.target.value, roll: ''}));
+                            }}
                             className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold"
                         >
                             {Object.values(Branch).map(b => <option key={b} value={b} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{b}</option>)}
@@ -496,7 +542,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                             className="w-24 bg-transparent outline-none text-slate-800 dark:text-white placeholder:text-slate-500"
                         />
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">Select Branch, then type Roll No. The student's name will appear below.</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">Select Prefix & Branch, then type Roll No. The student's name will appear below.</p>
                 </div>
                 
                 <div className="mt-8 h-12">

@@ -101,7 +101,7 @@ const Sidebar: React.FC = () => {
 
     return (
         <>
-            <aside className={`fixed top-0 left-0 z-40 w-64 h-screen bg-slate-900 text-white flex flex-col transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+            <aside className={`fixed top-0 left-0 z-40 w-64 h-screen bg-slate-900 text-white flex flex-col transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:animate-slide-in-from-left`}>
                 <div className="flex items-center justify-between p-5 border-b border-white/10">
                     <div className="flex items-center">
                         <Icons.logo className="h-8 w-8 text-primary-500 animate-logo-breath" />
@@ -149,7 +149,7 @@ const Header: React.FC = () => {
   const { theme, toggleTheme, user, setSidebarOpen } = useAppContext();
 
   return (
-    <header className="sticky top-0 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-lg z-20 border-b border-slate-200 dark:border-slate-800">
+    <header className="sticky top-0 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-lg z-20 border-b border-slate-200 dark:border-slate-800 animate-fade-in-down">
         <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-20">
                  <button onClick={() => setSidebarOpen(true)} className="md:hidden text-slate-500 dark:text-slate-400">
@@ -584,7 +584,7 @@ const MainApp: React.FC = () => {
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden md:ml-64">
                 <Header />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto animate-fade-in [animation-delay:200ms]">
                     <PageRenderer refreshDashboardStats={refreshDashboardStats} />
                 </main>
             </div>

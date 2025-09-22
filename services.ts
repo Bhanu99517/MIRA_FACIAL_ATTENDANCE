@@ -526,7 +526,13 @@ export const updateApplicationStatus = async (appId: string, status: Application
 export const getSbtetResult = async (pin: string, semester: number): Promise<SBTETResult | null> => {
     const results = storage.getItem<SBTETResult[]>('MOCK_SBTET_RESULTS') || [];
     const result = results.find(r => r.pin === pin && r.semester === semester);
-    return delay(result || null, 500);
+    return delay(result || null, 250);
+};
+
+export const getAllSbtetResultsForPin = async (pin: string): Promise<SBTETResult[]> => {
+    const allResults = storage.getItem<SBTETResult[]>('MOCK_SBTET_RESULTS') || [];
+    const studentResults = allResults.filter(r => r.pin === pin).sort((a, b) => a.semester - b.semester);
+    return delay(studentResults, 500);
 };
 
 export const getAllSyllabusCoverage = async (): Promise<SyllabusCoverage[]> => {
