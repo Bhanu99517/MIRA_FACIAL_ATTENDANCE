@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Import Branch as a value to use it in runtime logic, and alias the imported setTimetable function to avoid name collision.
 import type { User, Timetable } from '../types';
 import { Role, Branch } from '../types';
 import { getTimetable, setTimetable as apiSetTimetable } from '../services';
@@ -7,12 +6,14 @@ import { Icons } from '../constants';
 import { Modal } from '../components';
 
 const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
-    // FIX: Safely initialize branch state by checking if user.branch is a valid Branch enum member.
     const [branch, setBranch] = useState<Branch>(Object.values(Branch).find(b => b === user.branch) || Branch.EC);
     const [year, setYear] = useState(user.year || 1);
     const [timetable, setTimetable] = useState<Timetable | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isModalOpen, setModalOpen] = useState(false);
+    const [isViewerModalOpen, setViewerModalOpen] = useState(false);
+    const [isUploadModalOpen, setUploadModalOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
     const isAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD;
 
@@ -22,18 +23,38 @@ const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
             .then(setTimetable)
             .finally(() => setLoading(false));
     }, [branch, year]);
-    
-    const handleUpdateTimetable = async () => {
-        const url = prompt("Enter the new URL for the timetable image:", timetable?.url || 'https://i.imgur.com/8xT1iJ7.png');
-        if (url) {
-            setLoading(true);
-            // FIX: Use the aliased apiSetTimetable function to avoid conflict with the state setter.
-            await apiSetTimetable(branch, year, url, user.name);
-            const updatedTimetable = await getTimetable(branch, year);
-            setTimetable(updatedTimetable);
-            setLoading(false);
-            alert("Timetable updated successfully!");
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setSelectedFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
         }
+    };
+
+    const handleUpload = async () => {
+        if (!selectedFile) return;
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const url = reader.result as string;
+            if (url) {
+                setLoading(true);
+                await apiSetTimetable(branch, year, url, user.name);
+                const updatedTimetable = await getTimetable(branch, year);
+                setTimetable(updatedTimetable);
+                setLoading(false);
+                setUploadModalOpen(false);
+                setSelectedFile(null);
+                setPreviewUrl(null);
+                alert("Timetable updated successfully!");
+            }
+        };
+        reader.readAsDataURL(selectedFile);
     };
 
     return (
@@ -76,22 +97,57 @@ const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
                                 <h2 className="text-2xl font-bold">Timetable for {timetable.branch} - {timetable.year}{year === 1 ? 'st' : year === 2 ? 'nd' : 'rd'} Year</h2>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Last updated by {timetable.updated_by} on {new Date(timetable.updated_at).toLocaleDateString()}</p>
                             </div>
-                            {isAdmin && <button onClick={handleUpdateTimetable} className="font-semibold text-sm py-2 px-4 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Update</button>}
+                            {isAdmin && <button onClick={() => setUploadModalOpen(true)} className="font-semibold text-sm py-2 px-4 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Update</button>}
                         </div>
-                        <div className="mt-6 border-2 border-dashed dark:border-slate-700 rounded-xl p-4 cursor-pointer hover:border-primary-500 transition-colors" onClick={() => setModalOpen(true)}>
+                        <div className="mt-6 border-2 border-dashed dark:border-slate-700 rounded-xl p-4 cursor-pointer hover:border-primary-500 transition-colors" onClick={() => setViewerModalOpen(true)}>
                             <img src={timetable.url} alt={`Timetable for ${branch} Year ${year}`} className="w-full rounded-lg" />
                         </div>
                      </div>
                  ) : (
                       <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
                          <p className="font-semibold text-lg">No timetable found for {branch} - Year {year}.</p>
-                         {isAdmin && <button onClick={handleUpdateTimetable} className="mt-4 font-semibold py-2 px-4 rounded-lg bg-primary-600 text-white">Upload Now</button>}
+                         {isAdmin && <button onClick={() => setUploadModalOpen(true)} className="mt-4 font-semibold py-2 px-4 rounded-lg bg-primary-600 text-white">Upload Now</button>}
                      </div>
                  )}
             </div>
 
-            <Modal isOpen={isModalOpen} onClose={() => setModalOpen(false)} title={`Timetable: ${branch} - Year ${year}`}>
+            <Modal isOpen={isViewerModalOpen} onClose={() => setViewerModalOpen(false)} title={`Timetable: ${branch} - Year ${year}`}>
                 <img src={timetable?.url} alt={`Timetable for ${branch} Year ${year}`} className="w-full rounded-lg" />
+            </Modal>
+
+            <Modal isOpen={isUploadModalOpen} onClose={() => setUploadModalOpen(false)} title="Upload New Timetable">
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Timetable Image</label>
+                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-md">
+                            <div className="space-y-1 text-center">
+                                <Icons.upload className="mx-auto h-12 w-12 text-slate-400" />
+                                <div className="flex text-sm text-slate-600 dark:text-slate-400">
+                                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white dark:bg-slate-900 rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                                        <span>Upload a file</span>
+                                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handleFileSelect} />
+                                    </label>
+                                    <p className="pl-1">or drag and drop</p>
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-slate-500">PNG, JPG, GIF</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {previewUrl && (
+                        <div>
+                            <p className="text-sm font-medium">Preview:</p>
+                            <img src={previewUrl} alt="Timetable preview" className="mt-2 rounded-lg max-h-60 w-auto mx-auto border dark:border-slate-700" />
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-3 pt-4">
+                        <button onClick={() => setUploadModalOpen(false)} className="px-4 py-2 text-sm font-medium rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600">Cancel</button>
+                        <button onClick={handleUpload} disabled={!selectedFile || loading} className="px-4 py-2 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:bg-slate-400 disabled:cursor-not-allowed">
+                            {loading ? 'Uploading...' : 'Upload'}
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

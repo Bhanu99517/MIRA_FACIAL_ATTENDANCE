@@ -31,6 +31,7 @@ export interface User {
   parent_email_verified: boolean;
   phoneNumber?: string;
   imageUrl?: string;
+  referenceImageUrl?: string;
   password?: string;
 }
 
@@ -143,13 +144,18 @@ export interface SBTETResult {
   status: 'Pass' | 'Fail';
 }
 
-export interface Syllabus {
-  id: string;
+export interface SyllabusCoverage {
+  id: string; // e.g., ec-3-5-EC-501
   branch: Branch;
   year: number;
-  url: string; // URL to a PDF
-  updated_at: string;
-  updated_by: string;
+  semester: number;
+  subjectCode: string;
+  subjectName: string;
+  facultyId: string;
+  facultyName: string;
+  totalTopics: number;
+  topicsCompleted: number;
+  lastUpdated: string; // ISO String
 }
 
 export interface Timetable {

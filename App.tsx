@@ -118,12 +118,12 @@ const Sidebar: React.FC = () => {
                         }
                         return (
                         <div key={section.title}>
-                            <h3 className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">{section.title}</h3>
+                            <h3 className="px-3 py-2 text-sm font-semibold text-slate-500 uppercase tracking-wider">{section.title}</h3>
                             {section.links.map((link) => (
                                 <button
                                     key={link.name}
                                     onClick={() => { setPage(link.name); setSidebarOpen(false); }}
-                                    className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-200 ${page === link.name ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                                    className={`w-full flex items-center px-3 py-2.5 text-base font-medium rounded-lg transition-colors duration-200 ${page === link.name ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
                                 >
                                     <link.icon className="h-5 w-5 mr-3" />
                                     <span>{link.name.replace(/([A-Z])/g, ' $1').trim()}</span>
@@ -134,7 +134,7 @@ const Sidebar: React.FC = () => {
                     })}
                 </nav>
                 <div className="p-4 border-t border-white/10">
-                    <button onClick={logout} className="w-full flex items-center px-4 py-2 text-sm rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors duration-200">
+                    <button onClick={logout} className="w-full flex items-center px-4 py-2 text-base rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors duration-200">
                         <Icons.logout className="h-5 w-5 mr-3" />
                         <span>Logout</span>
                     </button>

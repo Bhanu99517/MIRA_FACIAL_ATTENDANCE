@@ -1,5 +1,5 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { User, Role, Branch, AttendanceRecord, Application, PPTContent, QuizContent, LessonPlanContent, ApplicationStatus, ApplicationType, SBTETResult, Syllabus, Timetable, Feedback, AppSettings } from './types';
+import { User, Role, Branch, AttendanceRecord, Application, PPTContent, QuizContent, LessonPlanContent, ApplicationStatus, ApplicationType, SBTETResult, SyllabusCoverage, Timetable, Feedback, AppSettings } from './types';
 
 // --- MOCK STORAGE SERVICE ---
 class MockStorage {
@@ -155,6 +155,7 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
                 email: `${s.name.toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.')}@mira.edu`,
                 parent_email: `parent.${s.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@email.com`,
                 imageUrl: createAvatar(s.name),
+                referenceImageUrl: createAvatar(s.name),
                 password: 'qwe123mnb890',
                 email_verified: Math.random() > 0.2,
                 parent_email_verified: Math.random() > 0.5,
@@ -164,6 +165,45 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
     ];
     storage.setItem('MOCK_USERS', MOCK_USERS);
 }
+
+const semesterSubjects: Record<number, { code: string; name: string }[]> = {
+    1: [
+        { code: 'EC-101', name: 'Basic English' }, { code: 'EC-102', name: 'Basic Engineering Mathematics' },
+        { code: 'EC-103', name: 'Basic Physics' }, { code: 'EC-104', name: 'General Engineering Chemistry' },
+        { code: 'EC-105', name: 'Basic Electrical & Electronics Engineering' }, { code: 'EC-106', name: 'Basic Engineering Drawing' },
+        { code: 'EC-107', name: 'Basic AutoCAD Lab' }, { code: 'EC-108', name: 'Basic Electrical & Electronics Engineering Lab' },
+        { code: 'EC-109', name: 'Basic Science Lab' }, { code: 'EC-110', name: 'Basic Computer Science Lab' },
+    ],
+    2: [
+        { code: 'EC-201', name: 'Advanced English' }, { code: 'EC-202', name: 'Engineering Mathematics' },
+        { code: 'EC-203', name: 'Applied Physics' }, { code: 'EC-204', name: 'Engineering Chemistry & Environmental' },
+        { code: 'EC-205', name: 'Programming In C' }, { code: 'EC-206', name: 'Advanced Engineering Drawing' },
+        { code: 'EC-207', name: 'Advanced AutoCAD Lab' }, { code: 'EC-208', name: 'Semiconductor Devices Lab' },
+        { code: 'EC-209', name: 'Applied Science Lab' }, { code: 'EC-210', name: 'Programming in C Lab' },
+    ],
+    3: [
+        { code: 'EC-301', name: 'Applied Engineering Mathematics' }, { code: 'EC-302', name: 'Digital Electronics' },
+        { code: 'EC-303', name: 'Electronic Devices and Circuits' }, { code: 'EC-304', name: 'Communication Systems' },
+        { code: 'EC-305', name: 'Network Analysis' }, { code: 'EC-306', name: 'Electronic Devices Lab' },
+        { code: 'EC-307', name: 'Network Analysis lab' }, { code: 'EC-308', name: 'Digital Electronics Lab' },
+        { code: 'EC-309', name: 'Circuit Design & Simulation Lab' }, { code: 'EC-310', name: 'Communication and Life Skills Lab' },
+    ],
+    4: [
+        { code: 'EC-401', name: 'Advanced Engineering Mathematics' }, { code: 'EC-402', name: 'Microcontroller Programming' },
+        { code: 'EC-403', name: 'Integrated Circuits & Thyristors' }, { code: 'EC-404', name: 'Microwave Communication and Television' },
+        { code: 'EC-405', name: 'Electronic Measuring Instruments' }, { code: 'EC-406', name: 'Linear Integrated Circuits Lab' },
+        { code: 'EC-407', name: 'Communication Lab' }, { code: 'EC-408', name: 'Microcontrollers Programming Lab' },
+        { code: 'EC-409', name: 'MAT Lab' }, { code: 'EC-410', name: 'Employability Skills Lab' },
+    ],
+    5: [
+        { code: 'EC-501', name: 'Industrial Management and Entrepreneurship' }, { code: 'EC-502', name: 'Industrial Electronics' },
+        { code: 'EC-503', name: 'Data Communication and Computer Networks' }, { code: 'EC-574', name: 'Mobile Communication & Optical Fibre Communication' },
+        { code: 'EC-585', name: 'Digital Circuit Design using Verilog HDL' }, { code: 'EC-506', name: 'Industrial Electronics Lab' },
+        { code: 'EC-507', name: 'Computer Hardware and Networking Lab' }, { code: 'EC-508', name: 'LabVIEW' },
+        { code: 'EC-509', name: 'Digital Circuit Design using Verilog HDL  Lab' }, { code: 'EC-510', name: 'Project Work' },
+    ]
+};
+
 
 const generateInitialData = () => {
     if (!storage.getItem('INITIAL_DATA_GENERATED')) {
@@ -195,14 +235,81 @@ const generateInitialData = () => {
             { id: 'app-2', userId: user3.id, pin: user3.pin, type: ApplicationType.BONAFIDE, payload: { reason: 'Passport Application' }, status: ApplicationStatus.PENDING, created_at: now }
         ]);
         
-        storage.setItem('MOCK_SBTET_RESULTS', [
-            { id: 'res1', pin: '23210-EC-001', semester: 1, subjects: [{code: 'EC-101', name: 'Basic Electronics', internal: 18, external: 55, total: 73, credits: 4}, {code: 'EC-102', name: 'Digital Logic', internal: 19, external: 60, total: 79, credits: 4}], totalMarks: 152, creditsEarned: 8, sgpa: 8.5, status: 'Pass' },
-            { id: 'res2', pin: '23210-EC-002', semester: 1, subjects: [{code: 'EC-101', name: 'Basic Electronics', internal: 15, external: 35, total: 50, credits: 4}, {code: 'EC-102', name: 'Digital Logic', internal: 12, external: 25, total: 37, credits: 0}], totalMarks: 87, creditsEarned: 4, sgpa: 4.1, status: 'Fail' },
-        ]);
-        storage.setItem('MOCK_SYLLABUS', [
-            { id: 'syl1', branch: Branch.EC, year: 1, url: '/mock-data/syllabus-ec-1.pdf', updated_at: now, updated_by: 'Dr. S. Radhika'},
-            { id: 'syl2', branch: Branch.CS, year: 1, url: '/mock-data/syllabus-cs-1.pdf', updated_at: now, updated_by: 'Dr. S. Radhika' },
-        ]);
+        const getGradePoint = (marks: number): number => {
+            const passingMark = 35;
+            if (marks < passingMark) return 0;
+            if (marks >= 90) return 10;
+            if (marks >= 80) return 9;
+            if (marks >= 70) return 8;
+            if (marks >= 60) return 7;
+            if (marks >= 50) return 6;
+            if (marks >= passingMark) return 5;
+            return 0;
+        };
+
+        const MOCK_SBTET_RESULTS: SBTETResult[] = [];
+        const ecStudents = MOCK_USERS.filter(u => u.branch === Branch.EC);
+
+        ecStudents.forEach(student => {
+            for (let sem = 1; sem <= 5; sem++) {
+                const passingMark = 35;
+                const subjectsForSem = semesterSubjects[sem];
+                const failProbability = 0.18; // 18% chance to fail a semester
+                const isFailingSemester = Math.random() < failProbability;
+                const failedSubjectIndex = isFailingSemester ? Math.floor(Math.random() * subjectsForSem.length) : -1;
+
+                const subjects = subjectsForSem.map((sub, index) => {
+                    const isFailingSubject = index === failedSubjectIndex;
+                    const internal = Math.floor(Math.random() * 11) + 10; // 10-20
+                    const external = isFailingSubject
+                        ? Math.floor(Math.random() * 20) // 0-19 to ensure failure
+                        : Math.floor(Math.random() * 46) + 35; // 35-80 to ensure pass
+                    const total = internal + external;
+                    const credits = total >= passingMark ? 4 : 0;
+                    return { ...sub, internal, external, total, credits };
+                });
+
+                const totalMarks = subjects.reduce((sum, s) => sum + s.total, 0);
+                const creditsEarned = subjects.reduce((sum, s) => sum + s.credits, 0);
+                const totalPossibleCredits = subjects.length * 4;
+                
+                const totalGradePoints = subjects.reduce((sum, s) => sum + getGradePoint(s.total), 0);
+                const sgpa = subjects.length > 0 ? totalGradePoints / subjects.length : 0;
+
+                const status: 'Pass' | 'Fail' = creditsEarned === totalPossibleCredits ? 'Pass' : 'Fail';
+
+                MOCK_SBTET_RESULTS.push({
+                    id: `res-${student.pin}-${sem}`,
+                    pin: student.pin,
+                    semester: sem,
+                    subjects,
+                    totalMarks,
+                    creditsEarned,
+                    sgpa: parseFloat(sgpa.toFixed(2)),
+                    status,
+                });
+            }
+        });
+        storage.setItem('MOCK_SBTET_RESULTS', MOCK_SBTET_RESULTS);
+
+        const MOCK_SYLLABUS_COVERAGE: SyllabusCoverage[] = [
+            // 3rd Year (Sem 5) - EC (with percentages from user image)
+            { id: 'ec-3-5-EC-501', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'ME-501', subjectName: 'Industrial Management & Enterpreneurship', facultyId: 'fac_01', facultyName: 'ARCOT VIDYA SAGAR', totalTopics: 20, topicsCompleted: 17, lastUpdated: now }, // 85%
+            { id: 'ec-3-5-EC-502', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-502', subjectName: 'Industrial Electronics', facultyId: 'fac_01', facultyName: 'ARCOT VIDYA SAGAR', totalTopics: 25, topicsCompleted: 23, lastUpdated: now }, // 92%
+            { id: 'ec-3-5-EC-503', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-503', subjectName: 'Data Communication and Computer Networks', facultyId: 'fac_09', facultyName: 'TULLURI MANJOLA', totalTopics: 50, topicsCompleted: 39, lastUpdated: now }, // 78%
+            { id: 'ec-3-5-EC-574', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-574', subjectName: 'Mobile & Optical Fibre Communication', facultyId: 'fac_07', facultyName: 'B.GOPALA RAO', totalTopics: 20, topicsCompleted: 13, lastUpdated: now }, // 65%
+            { id: 'ec-3-5-EC-585', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-585', subjectName: 'Digital Circuit Design using Verilog VHDL', facultyId: 'fac_10', facultyName: 'UMASHANKAR', totalTopics: 20, topicsCompleted: 19, lastUpdated: now }, // 95%
+            { id: 'ec-3-5-EC-506', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-506', subjectName: 'Industrial Electronics Lab', facultyId: 'fac_01', facultyName: 'ARCOT VIDYA SAGAR', totalTopics: 12, topicsCompleted: 10, lastUpdated: now }, // 83%
+            { id: 'ec-3-5-EC-507', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-507', subjectName: 'Computer Hardware and Networking Lab', facultyId: 'fac_09', facultyName: 'TULLURI MANJOLA', totalTopics: 10, topicsCompleted: 3, lastUpdated: now }, // 30%
+            { id: 'ec-3-5-EC-508', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-508', subjectName: 'LabVIEW', facultyId: 'fac_07', facultyName: 'B.GOPALA RAO', totalTopics: 8, topicsCompleted: 8, lastUpdated: now }, // 100%
+            { id: 'ec-3-5-EC-509', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-509', subjectName: 'Digital Circuit Design using Verilog HDL  Lab', facultyId: 'fac_10', facultyName: 'UMASHANKAR', totalTopics: 12, topicsCompleted: 5, lastUpdated: now }, // 42%
+        
+            // 1st Year (Sem 1) - CS
+            { id: 'cs-1-1-CS-101', branch: Branch.CS, year: 1, semester: 1, subjectCode: 'CS-101', subjectName: 'Programming Fundamentals', facultyId: 'fac_04', facultyName: 'BIDARUKOTA SHAKTHI KIRAN', totalTopics: 5, topicsCompleted: 3, lastUpdated: now },
+            { id: 'cs-1-1-CS-102', branch: Branch.CS, year: 1, semester: 1, subjectCode: 'CS-102', subjectName: 'Discrete Mathematics', facultyId: 'fac_05', facultyName: 'HARESH NANDA', totalTopics: 5, topicsCompleted: 4, lastUpdated: now },
+        ];
+        storage.setItem('MOCK_SYLLABUS_COVERAGE', MOCK_SYLLABUS_COVERAGE);
+
         storage.setItem('MOCK_TIMETABLES', [
             { id: 'tt1', branch: Branch.EC, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'T. Manjula' },
             { id: 'tt2', branch: Branch.CS, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'Admin' },
@@ -260,6 +367,13 @@ export const getDashboardStats = async () => {
 
 export const getAttendanceForDate = async (date: string): Promise<AttendanceRecord[]> => {
     return delay((storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.date === date));
+};
+
+export const getTodaysAttendanceForUser = async (userId: string): Promise<AttendanceRecord | null> => {
+    const today = new Date().toISOString().split('T')[0];
+    const allAttendance = storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || [];
+    const record = allAttendance.find(a => a.userId === userId && a.date === today);
+    return delay(record || null, 50);
 };
   
 export const getAttendanceForUser = async (userId: string): Promise<AttendanceRecord[]> => {
@@ -415,24 +529,35 @@ export const getSbtetResult = async (pin: string, semester: number): Promise<SBT
     return delay(result || null, 500);
 };
 
-export const getSyllabus = async (branch: Branch, year: number): Promise<Syllabus | null> => {
-    const syllabi = storage.getItem<Syllabus[]>('MOCK_SYLLABUS') || [];
-    const syllabus = syllabi.find(s => s.branch === branch && s.year === year);
-    return delay(syllabus || null);
+export const getAllSyllabusCoverage = async (): Promise<SyllabusCoverage[]> => {
+    const allCoverage = storage.getItem<SyllabusCoverage[]>('MOCK_SYLLABUS_COVERAGE') || [];
+    return delay(allCoverage);
 };
 
-export const setSyllabus = async (branch: Branch, year: number, url: string, updatedBy: string): Promise<Syllabus> => {
-    let syllabi = storage.getItem<Syllabus[]>('MOCK_SYLLABUS') || [];
-    const existing = syllabi.find(s => s.branch === branch && s.year === year);
-    if (existing) {
-        existing.url = url;
-        existing.updated_at = new Date().toISOString();
-        existing.updated_by = updatedBy;
-    } else {
-        syllabi.push({ id: `syl-${Date.now()}`, branch, year, url, updated_at: new Date().toISOString(), updated_by: updatedBy });
-    }
-    storage.setItem('MOCK_SYLLABUS', syllabi);
-    return delay(syllabi.find(s => s.branch === branch && s.year === year)!);
+export const getSyllabusCoverage = async (branch: Branch, year: number, semester: number): Promise<SyllabusCoverage[]> => {
+    const allCoverage = storage.getItem<SyllabusCoverage[]>('MOCK_SYLLABUS_COVERAGE') || [];
+    const filtered = allCoverage.filter(s => s.branch === branch && s.year === year && s.semester === semester);
+    return delay(filtered);
+};
+
+export const updateSyllabusCoverage = async (id: string, updates: { topicsCompleted?: number, totalTopics?: number }): Promise<SyllabusCoverage> => {
+    let allCoverage = storage.getItem<SyllabusCoverage[]>('MOCK_SYLLABUS_COVERAGE') || [];
+    let updatedCoverage: SyllabusCoverage | undefined;
+    allCoverage = allCoverage.map(s => {
+        if (s.id === id) {
+            updatedCoverage = { ...s, ...updates, lastUpdated: new Date().toISOString() };
+            
+            // Ensure topicsCompleted is not greater than totalTopics
+            if (updatedCoverage.topicsCompleted > updatedCoverage.totalTopics) {
+                updatedCoverage.topicsCompleted = updatedCoverage.totalTopics;
+            }
+            return updatedCoverage;
+        }
+        return s;
+    });
+    if (!updatedCoverage) throw new Error("Syllabus coverage record not found");
+    storage.setItem('MOCK_SYLLABUS_COVERAGE', allCoverage);
+    return delay(updatedCoverage);
 };
 
 export const getTimetable = async (branch: Branch, year: number): Promise<Timetable | null> => {

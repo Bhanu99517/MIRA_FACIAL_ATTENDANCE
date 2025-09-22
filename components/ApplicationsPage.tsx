@@ -257,7 +257,7 @@ const AdminView: React.FC<{ user: User }> = ({ user }) => {
             const applicant = await getUserByPin(app.pin);
             if (applicant?.email && applicant.email_verified) {
                 const subject = `Your ${app.type} Application has been ${newStatus}`;
-                const body = `Dear ${applicant.name},\n\nYour application for a ${app.type} for the reason "${app.payload.reason || app.payload.purpose || 'N/A'}" has been ${newStatus}.\n\nPlease contact the office for further details if required.\n\nRegards,\nMira College Administration`;
+                const body = `Dear ${applicant.name},\n\nYour application for a ${app.type} for the reason "${app.payload.reason || app.payload.purpose || 'N/A'}" has been ${newStatus}.\n\nPlease contact the office for further details if required.\n\nRegards,\nGOVERNMENT POLYTECHNIC SANGAREDDY COLLEGE Administration`;
                 await sendEmail(applicant.email, subject, body);
             }
             alert(`Application ${newStatus.toLowerCase()} and notification sent.`);

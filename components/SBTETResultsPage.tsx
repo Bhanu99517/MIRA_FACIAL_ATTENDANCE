@@ -3,61 +3,8 @@ import type { User, SBTETResult } from '../types';
 import { Role } from '../types';
 import { getSbtetResult, getUserByPin } from '../services';
 import { Icons } from '../constants';
-
-const ResultsDisplay: React.FC<{ result: SBTETResult }> = ({ result }) => {
-    const isPass = result.status === 'Pass';
-    return (
-        <div className="mt-6 space-y-6 animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-                <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg">
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Marks</p>
-                    <p className="text-2xl font-bold">{result.totalMarks} / {result.subjects.length * 100}</p>
-                </div>
-                <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg">
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">SGPA</p>
-                    <p className="text-2xl font-bold">{result.sgpa.toFixed(2)}</p>
-                </div>
-                <div className={`${isPass ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'} p-4 rounded-lg`}>
-                    <p className={`text-sm font-medium ${isPass ? 'text-green-600' : 'text-red-600'}`}>Result Status</p>
-                    <p className={`text-2xl font-bold ${isPass ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>{result.status}</p>
-                </div>
-            </div>
-
-            <div className="overflow-x-auto">
-                <table className="min-w-full">
-                    <thead className="bg-slate-100 dark:bg-slate-800">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Sub Code</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Subject Name</th>
-                            <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Internal</th>
-                            <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">External</th>
-                            <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Total</th>
-                            <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Credits</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {result.subjects.map(sub => (
-                            <tr key={sub.code} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                <td className="px-6 py-4 font-mono">{sub.code}</td>
-                                <td className="px-6 py-4 font-semibold">{sub.name}</td>
-                                <td className="px-6 py-4 text-center">{sub.internal}</td>
-                                <td className="px-6 py-4 text-center">{sub.external}</td>
-                                <td className="px-6 py-4 text-center font-bold">{sub.total}</td>
-                                <td className="px-6 py-4 text-center">{sub.credits}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-             <div className="text-center mt-6">
-                <button className="font-semibold py-2 px-6 rounded-lg transition-colors bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 flex items-center gap-2 mx-auto">
-                    <Icons.download className="w-5 h-5" /> Download as PDF
-                </button>
-            </div>
-        </div>
-    );
-};
-
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const SBTETResultsPage: React.FC<{ user: User }> = ({ user }) => {
     const [pin, setPin] = useState(user.role === Role.STUDENT ? user.pin : '');
@@ -66,14 +13,149 @@ const SBTETResultsPage: React.FC<{ user: User }> = ({ user }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [searchedUser, setSearchedUser] = useState<User | null>(user);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const isAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD;
+    
+    const handleDownloadPdf = () => {
+        if (!result || !searchedUser) return;
+        setIsDownloading(true);
+
+        try {
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text('GOVERNMENT POLYTECHNIC SANGAREDDY COLLEGE', 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text('Statement of Marks', 105, 28, { align: 'center' });
+            
+            // Student Info
+            doc.setFontSize(11);
+            doc.text(`Student Name: ${searchedUser.name}`, 14, 45);
+            doc.text(`PIN: ${searchedUser.pin}`, 14, 51);
+            doc.text(`Semester: ${result.semester}`, 140, 45);
+            doc.text(`Branch: ${searchedUser.branch}`, 140, 51);
+            
+            // Results Table
+            const tableColumn = ["Sub Code", "Subject Name", "Internal", "External", "Total", "Credits"];
+            const tableRows = result.subjects.map(sub => [
+                sub.code,
+                sub.name,
+                sub.internal.toString(),
+                sub.external.toString(),
+                sub.total.toString(),
+                sub.credits.toString()
+            ]);
+            
+            autoTable(doc, {
+                startY: 60,
+                head: [tableColumn],
+                body: tableRows,
+                theme: 'grid',
+                headStyles: { fillColor: [2, 132, 199] } // primary-600 color
+            });
+
+            const finalY = (doc as any).lastAutoTable.finalY;
+
+            // Summary
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Summary', 14, finalY + 15);
+            
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total Marks Obtained: ${result.totalMarks} / ${result.subjects.length * 100}`, 14, finalY + 22);
+            doc.text(`SGPA: ${result.sgpa.toFixed(2)}`, 14, finalY + 28);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Result: ${result.status}`, 14, finalY + 34);
+
+            // Footer
+            const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, pageHeight - 10);
+            doc.text('Controller of Examinations', 196, pageHeight - 10, { align: 'right' });
+
+            // Save
+            doc.save(`SBTET_Results_${searchedUser.pin}_Sem_${result.semester}.pdf`);
+
+        } catch (e) {
+            console.error("Failed to generate PDF", e);
+            alert("An error occurred while generating the PDF.");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+
+    const ResultsDisplay: React.FC<{ result: SBTETResult }> = ({ result }) => {
+        const isPass = result.status === 'Pass';
+        return (
+            <div className="mt-6 space-y-6 animate-fade-in">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                    <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg">
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Marks</p>
+                        <p className="text-2xl font-bold">{result.totalMarks} / {result.subjects.length * 100}</p>
+                    </div>
+                    <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg">
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">SGPA</p>
+                        <p className="text-2xl font-bold">{result.sgpa.toFixed(2)}</p>
+                    </div>
+                    <div className={`${isPass ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'} p-4 rounded-lg`}>
+                        <p className={`text-sm font-medium ${isPass ? 'text-green-600' : 'text-red-600'}`}>Result Status</p>
+                        <p className={`text-2xl font-bold ${isPass ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>{result.status}</p>
+                    </div>
+                </div>
+    
+                <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                        <thead className="bg-slate-100 dark:bg-slate-800">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Sub Code</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Subject Name</th>
+                                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Internal</th>
+                                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">External</th>
+                                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Total</th>
+                                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Credits</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                            {result.subjects.map(sub => (
+                                <tr key={sub.code} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                    <td className="px-6 py-4 font-mono">{sub.code}</td>
+                                    <td className="px-6 py-4 font-semibold">{sub.name}</td>
+                                    <td className="px-6 py-4 text-center">{sub.internal}</td>
+                                    <td className="px-6 py-4 text-center">{sub.external}</td>
+                                    <td className="px-6 py-4 text-center font-bold">{sub.total}</td>
+                                    <td className="px-6 py-4 text-center">{sub.credits}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                 <div className="text-center mt-6">
+                    <button onClick={handleDownloadPdf} disabled={isDownloading} className="font-semibold py-2 px-6 rounded-lg transition-colors bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 flex items-center gap-2 mx-auto disabled:bg-slate-400 dark:disabled:bg-slate-600">
+                        {isDownloading ? (
+                            'Generating...'
+                        ) : (
+                            <>
+                                <Icons.download className="w-5 h-5" /> Download as PDF
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+        );
+    };
 
     useEffect(() => {
         if (!isAdmin) {
             handleFetchResult();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks-exhaustive-deps
     }, [semester]);
 
     const handlePinSearch = async (searchPin: string) => {

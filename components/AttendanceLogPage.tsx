@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Role, Branch, User, Page, AttendanceRecord, Application, PPTContent, QuizContent } from '../types';
-import { getStudentByPin, markAttendance, getAttendanceForUser, sendEmail } from '../services';
+import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail } from '../services';
 import { Icons } from '../constants';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 // --- LOCAL ICONS ---
 const ArrowUpRightIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -21,24 +22,64 @@ const MapPinIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+const AttendanceTrendChart: React.FC<{ data: any[] }> = ({ data }) => {
+    const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    const tickColor = theme === 'dark' ? '#94a3b8' : '#64748b';
+
+    return (
+        <ResponsiveContainer width="100%" height={150}>
+            <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickColor }} tickLine={{ stroke: tickColor }} axisLine={{ stroke: tickColor }} />
+                <YAxis hide={true} domain={[0, 'dataMax']} />
+                <Tooltip
+                    cursor={{ fill: 'rgba(100, 116, 139, 0.1)' }}
+                    contentStyle={{ background: theme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255,255,255,0.9)', border: '1px solid #334155', borderRadius: '8px' }}
+                    labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#f1f5f9' : '#0f172a' }}
+                    formatter={(value, name, props) => [props.payload.status, 'Status']}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {data.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.status === 'Present' ? '#10B981' : entry.status === 'Absent' ? '#EF4444' : '#64748b'} />
+                    ))}
+                </Bar>
+            </BarChart>
+        </ResponsiveContainer>
+    );
+};
+
+
 const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }> = ({ refreshDashboardStats }) => {
     const [step, setStep] = useState<'capture' | 'verifying' | 'result'>('capture');
     const [pinParts, setPinParts] = useState({ year: '23', branch: 'EC', roll: '' });
     const [student, setStudent] = useState<User | null>(null);
     const [attendanceResult, setAttendanceResult] = useState<AttendanceRecord | null>(null);
     const [historicalData, setHistoricalData] = useState<AttendanceRecord[]>([]);
-    const [cameraStatus, setCameraStatus] = useState<'idle' | 'aligning' | 'liveness' | 'verifying'>('idle');
+    const [cameraStatus, setCameraStatus] = useState<'idle' | 'aligning' | 'liveness' | 'verifying' | 'failed' | 'retry'>('idle');
     const [cameraError, setCameraError] = useState('');
+    const [alreadyMarked, setAlreadyMarked] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const fullPin = useMemo(() => `23210-${pinParts.branch}-${pinParts.roll}`, [pinParts]);
 
     const handlePinChange = useCallback(async (newPin: string) => {
+        setAlreadyMarked(false);
+        setCameraError('');
         const roll = newPin.replace(/\D/g, '').slice(0, 3);
         setPinParts(p => ({...p, roll}));
+
         if (roll.length === 3) {
             const user = await getStudentByPin(`23210-${pinParts.branch}-${roll}`);
-            setStudent(user);
+            if (user) {
+                const todaysRecord = await getTodaysAttendanceForUser(user.id);
+                if (todaysRecord) {
+                    setStudent(null);
+                    setAlreadyMarked(true);
+                } else {
+                    setStudent(user);
+                }
+            } else {
+                setStudent(null);
+            }
         } else {
             setStudent(null);
         }
@@ -52,13 +93,23 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                     videoRef.current.srcObject = stream;
                     videoRef.current.onloadedmetadata = () => {
                         setCameraStatus('aligning');
-                        // Simulate face alignment
                         setTimeout(() => {
                              setCameraStatus('liveness');
-                             // Simulate liveness check
                              setTimeout(() => {
                                 setCameraStatus('verifying');
-                                handleMarkAttendance();
+                                setTimeout(() => {
+                                    const isMatch = Math.random() > 0.3; // 70% success rate
+                                    if (isMatch) {
+                                        handleMarkAttendance();
+                                    } else {
+                                        setCameraStatus('failed');
+                                        setCameraError("Face not recognized. Please ensure good lighting and try again.");
+                                        if (videoRef.current?.srcObject) {
+                                            (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+                                        }
+                                        setCameraStatus('retry');
+                                    }
+                                }, 2500);
                              }, 2000);
                         }, 2500);
                     }
@@ -72,6 +123,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
     
     const handleStartVerification = () => {
         if (!student) return;
+        setCameraError('');
         setStep('verifying');
         startCamera();
     };
@@ -157,15 +209,31 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         setHistoricalData([]);
         setCameraStatus('idle');
         setCameraError('');
+        setAlreadyMarked(false);
     };
     
     // --- Result View Components & Data ---
 
-    const { overallPercentage, trend, presentDays, workingDays, calendarData, monthlyStats } = useMemo(() => {
+    const { overallPercentage, trend, presentDays, workingDays, calendarData, monthlyStats, last30DaysTrend } = useMemo(() => {
+        const today = new Date();
+        const last30DaysData = [];
+        const attendanceMapForTrend = new Map(historicalData.map(r => [r.date, r.status]));
+
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const dateString = date.toISOString().split('T')[0];
+            const status = attendanceMapForTrend.get(dateString);
+
+            last30DaysData.push({
+                date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                status: status || 'No Record',
+                value: status ? 1 : 0,
+            });
+        }
+        
         const total = historicalData.length;
-        // FIX: Provide a default structure for monthlyStats when there's no data to avoid type errors.
         if (total === 0) {
-            const today = new Date();
             const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
             return {
                 overallPercentage: 0,
@@ -179,6 +247,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                     LD: endOfMonth.getDate() - today.getDate(),
                     WD: 0,
                 },
+                last30DaysTrend: last30DaysData,
             };
         }
 
@@ -193,7 +262,6 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         
         const calData = new Map(historicalData.map(r => [r.date, r.status]));
         
-        const today = new Date();
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         
@@ -218,7 +286,8 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
             presentDays: present, 
             workingDays: total, 
             calendarData: calData,
-            monthlyStats: stats
+            monthlyStats: stats,
+            last30DaysTrend: last30DaysData,
         };
     }, [historicalData]);
     
@@ -306,13 +375,24 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                                 <p className="text-right text-sm font-semibold">{presentDays} / {workingDays} days</p>
                             </div>
                         </div>
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
+                            <h4 className="font-bold text-slate-900 dark:text-white mb-4">Last 30-Day Attendance</h4>
+                            {historicalData.length > 0 ? (
+                                <AttendanceTrendChart data={last30DaysTrend} />
+                            ) : (
+                                <p className="text-center text-slate-500 py-10">Not enough data to display trend.</p>
+                            )}
+                        </div>
                         <CalendarView />
                     </div>
                     <div className="space-y-6">
                          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
                             <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Student Profile</h4>
                             <div className="flex items-center space-x-4">
-                                <img src={student?.imageUrl} alt={student?.name} className="h-16 w-16 rounded-full object-cover ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-slate-800" />
+                                <div className="relative">
+                                     <img src={student?.imageUrl} alt={student?.name} className="h-16 w-16 rounded-full object-cover ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-slate-800" />
+                                     <img src={student?.referenceImageUrl} alt="Reference" className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full object-cover ring-2 ring-white dark:ring-slate-800" title="Reference Photo"/>
+                                </div>
                                 <div>
                                     <p className="text-xl font-bold text-slate-900 dark:text-white">{student?.name}</p>
                                     <p className="text-sm text-slate-500 dark:text-slate-400 font-mono">{student?.pin}</p>
@@ -381,10 +461,12 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
     }
 
     const verificationMessages: {[key: string]: string} = {
-        aligning: 'Align your face in the circle.',
-        liveness: 'Great! Now, blink your eyes.',
-        verifying: 'Verifying, please hold on...'
-    }
+        aligning: 'Align student\'s face in the circle.',
+        liveness: 'Liveness check: Please ask the student to blink.',
+        verifying: 'Recognizing face... Comparing with profile.',
+        failed: 'Recognition Failed.',
+        retry: 'Recognition Failed.',
+    };
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center h-[calc(100vh-5rem)]">
@@ -421,32 +503,65 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                     {student && (
                         <p className="text-center text-2xl font-bold text-primary-600 dark:text-primary-400 animate-fade-in">{student.name}</p>
                     )}
+                    {alreadyMarked && (
+                         <p className="text-center text-lg font-semibold text-amber-500 animate-fade-in">Attendance already marked for today.</p>
+                    )}
                 </div>
-
-                <button 
-                    onClick={handleStartVerification}
-                    disabled={!student || step !== 'capture'} 
-                    className="w-full mt-8 py-3 bg-slate-700 text-white/90 text-lg font-medium rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
-                >
-                    Mark Attendance
-                </button>
+                
+                {cameraStatus === 'retry' ? (
+                     <button 
+                        onClick={handleStartVerification}
+                        className="w-full mt-8 py-3 bg-amber-500 text-white text-lg font-medium rounded-lg hover:bg-amber-600 transition-colors"
+                    >
+                        Try Again
+                    </button>
+                ) : (
+                    <button 
+                        onClick={handleStartVerification}
+                        disabled={!student || step !== 'capture'} 
+                        className="w-full mt-8 py-3 bg-slate-700 text-white/90 text-lg font-medium rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
+                    >
+                        Mark Attendance
+                    </button>
+                )}
             </div>
             
             <div className="flex flex-col items-center justify-center text-center">
-                <div className="relative w-80 h-80 rounded-full bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner">
-                    <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover transition-opacity duration-500 ${step === 'verifying' ? 'opacity-100' : 'opacity-0'}`} />
-                    {step !== 'verifying' && <Icons.logo className="w-24 h-24 text-slate-400 dark:text-slate-600" />}
-                     <div className={`absolute inset-0 rounded-full border-8 transition-all duration-500 ${
-                        cameraStatus === 'aligning' ? 'border-red-500' : 
-                        cameraStatus === 'liveness' ? 'border-green-500 animate-pulse' :
-                        cameraStatus === 'verifying' ? 'border-primary-500' :
-                        'border-transparent'
-                    }`}></div>
-                </div>
-                 <div className="mt-6 h-10">
+                {step === 'verifying' && cameraStatus === 'verifying' ? (
+                    <div className="animate-fade-in">
+                        <div className="flex items-center justify-center gap-4">
+                            <div className="flex flex-col items-center">
+                                <div className="relative w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700/50 overflow-hidden shadow-inner">
+                                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                                </div>
+                                <p className="text-sm font-semibold mt-2">Live Feed</p>
+                            </div>
+                            <Icons.send className="w-8 h-8 text-slate-400 shrink-0" />
+                            <div className="flex flex-col items-center">
+                                <div className="relative w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700/50 overflow-hidden shadow-inner">
+                                    <img src={student?.referenceImageUrl || student?.imageUrl} alt="Student Reference" className="w-full h-full object-cover" />
+                                </div>
+                                <p className="text-sm font-semibold mt-2">Reference Photo</p>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="relative w-80 h-80 rounded-full bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner">
+                        <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover transition-opacity duration-500 ${step === 'verifying' ? 'opacity-100' : 'opacity-0'}`} />
+                        {step !== 'verifying' && <Icons.logo className="w-24 h-24 text-slate-400 dark:text-slate-600" />}
+                        <div className={`absolute inset-0 rounded-full border-8 transition-all duration-500 ${
+                            cameraStatus === 'aligning' ? 'border-amber-500' : 
+                            cameraStatus === 'liveness' ? 'border-blue-500 animate-pulse' :
+                            cameraStatus === 'verifying' ? 'border-primary-500' :
+                            cameraStatus === 'failed' ? 'border-red-500' :
+                            'border-transparent'
+                        }`}></div>
+                    </div>
+                )}
+                <div className="mt-6 h-10">
                     {step === 'verifying' && <p className="text-lg font-semibold animate-fade-in">{verificationMessages[cameraStatus]}</p>}
-                    {cameraError && <p className="text-red-500 text-sm">{cameraError}</p>}
-                    {step === 'capture' && <p className="text-slate-500">Camera will activate after student selection.</p>}
+                    {cameraError && <p className="text-red-500 text-sm font-semibold">{cameraError}</p>}
+                    {step === 'capture' && !cameraError && <p className="text-slate-500">Camera will activate after student selection.</p>}
                 </div>
             </div>
         </div>

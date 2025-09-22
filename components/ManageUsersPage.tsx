@@ -19,6 +19,7 @@ const UserFormModal: React.FC<{
         email: user?.email || '',
         parent_email: user?.parent_email || '',
         imageUrl: user?.imageUrl || '',
+        referenceImageUrl: user?.referenceImageUrl || '',
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -36,6 +37,16 @@ const UserFormModal: React.FC<{
         }
     };
     
+    const handleReferenceImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setFormData(prev => ({ ...prev, referenceImageUrl: event.target?.result as string }));
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const userToSave: User = {
@@ -88,12 +99,23 @@ const UserFormModal: React.FC<{
                             <input type="email" name="parent_email" value={formData.parent_email} onChange={handleInputChange} className={inputClasses} />
                         </div>
                         <div className="md:col-span-2">
-                             <label className="block text-sm font-medium">Profile Image</label>
+                             <label className="block text-sm font-medium">Profile Image (Avatar)</label>
+                             <p className="text-xs text-slate-500">This image appears in lists and headers.</p>
                              <div className="mt-1 flex items-center gap-4">
                                 {formData.imageUrl && <img src={formData.imageUrl} alt="preview" className="w-16 h-16 rounded-full object-cover" />}
                                 <input type="file" accept="image/*" onChange={handleImageChange} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
                             </div>
                         </div>
+                         {formData.role === Role.STUDENT && (
+                            <div className="md:col-span-2">
+                                 <label className="block text-sm font-medium">Facial Recognition Reference Photo</label>
+                                 <p className="text-xs text-slate-500 font-semibold text-amber-600 dark:text-amber-400">Important: Upload a clear, forward-facing photo. This will be used to verify identity for attendance.</p>
+                                 <div className="mt-1 flex items-center gap-4">
+                                    {formData.referenceImageUrl && <img src={formData.referenceImageUrl} alt="reference preview" className="w-16 h-16 rounded-full object-cover" />}
+                                    <input type="file" accept="image/*" onChange={handleReferenceImageChange} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="mt-8 flex justify-end space-x-3">
                         <button type="button" onClick={onClose} className="font-semibold py-2 px-4 rounded-lg transition-colors bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">Cancel</button>
