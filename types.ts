@@ -89,7 +89,7 @@ export type Page =
   | 'SBTETResults' 
   | 'Syllabus' 
   | 'Timetables' 
-  | 'NotebookLLM' 
+  | 'CogniCraft AI' 
   | 'Feedback' 
   | 'Settings';
 

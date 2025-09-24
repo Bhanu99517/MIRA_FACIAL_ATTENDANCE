@@ -222,7 +222,7 @@ export const navLinks: { title: string; links: { name: Page, icon: React.FC<Reac
       { name: 'SBTETResults', icon: Icons.results },
       { name: 'Syllabus', icon: Icons.syllabus },
       { name: 'Timetables', icon: Icons.timetable },
-      { name: 'NotebookLLM', icon: Icons.notebookLLM },
+      { name: 'CogniCraft AI', icon: Icons.notebookLLM },
     ],
   },
   {

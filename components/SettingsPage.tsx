@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { User, AppSettings } from '../types';
-import { getSettings, updateSettings, updateUser } from '../services';
+import { getSettings, updateSettings, updateUser, cogniCraftService } from '../services';
 import { Icons } from '../constants';
 
 const SettingsSection: React.FC<{ title: string; description: string; children: React.ReactNode }> = ({ title, description, children }) => (
@@ -26,9 +26,11 @@ const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabl
 const SettingsPage: React.FC<{ user: User }> = ({ user }) => {
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [profile, setProfile] = useState({ name: user.name, email: user.email || '' });
+    const [apiStatus, setApiStatus] = useState<{ isInitialized: boolean; error: string | null; }>({ isInitialized: false, error: null });
     
     useEffect(() => {
         getSettings(user.id).then(setSettings);
+        setApiStatus(cogniCraftService.getClientStatus());
     }, [user.id]);
     
     const handleSettingsChange = async (newSettings: AppSettings) => {
@@ -88,6 +90,26 @@ const SettingsPage: React.FC<{ user: User }> = ({ user }) => {
                          <ToggleSwitch label="Make Profile Private" enabled={settings.profile_private} onChange={(e) => handleSettingsChange({ ...settings, profile_private: e })}/>
                          <button onClick={() => alert("Simulating data export... your data would be compiled and emailed to you.")} className="w-full text-left font-medium text-sm text-slate-700 dark:text-slate-200 hover:text-primary-600 dark:hover:text-primary-400">Export My Data</button>
                          <button onClick={() => alert("This is a critical action. In a real app, this would require password confirmation before deleting your account.")} className="w-full text-left font-medium text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">Delete My Account</button>
+                    </SettingsSection>
+                    <SettingsSection title="CogniCraft AI Status" description="Status of the connection to the CogniCraft AI service.">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">CogniCraft AI Service</span>
+                            {apiStatus.isInitialized ? (
+                                <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300 border border-green-200 dark:border-green-500/30">
+                                    Connected
+                                </span>
+                            ) : (
+                                <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300 border border-red-200 dark:border-red-500/30">
+                                    Not Configured
+                                </span>
+                            )}
+                        </div>
+                        {!apiStatus.isInitialized && apiStatus.error && (
+                            <div className="p-3 bg-amber-50 dark:bg-amber-900/50 border border-amber-200 dark:border-amber-500/30 rounded-lg">
+                                <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Configuration Error</p>
+                                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">{apiStatus.error}</p>
+                            </div>
+                        )}
                     </SettingsSection>
                 </div>
             </div>

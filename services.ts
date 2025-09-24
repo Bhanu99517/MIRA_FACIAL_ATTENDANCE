@@ -1,5 +1,6 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { User, Role, Branch, AttendanceRecord, Application, PPTContent, QuizContent, LessonPlanContent, ApplicationStatus, ApplicationType, SBTETResult, SyllabusCoverage, Timetable, Feedback, AppSettings } from './types';
+import { aiClientState } from './geminiClient';
 
 // --- MOCK STORAGE SERVICE ---
 class MockStorage {
@@ -635,45 +636,7 @@ export const updateSettings = async (userId: string, settings: AppSettings): Pro
     return delay(settings);
 };
 
-// --- GEMINI API SERVICE ---
-
-let ai: GoogleGenAI | null = null;
-
-const getAiClient = () => {
-    if(!ai){
-        if (process.env.API_KEY) {
-            ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        } else {
-            console.error("API_KEY environment variable not set.");
-            throw new Error("API_KEY environment variable not set.");
-        }
-    }
-    return ai;
-}
-
-// FIX: Propagate errors instead of returning an error string. This prevents downstream JSON.parse errors for callers expecting a JSON response.
-const runGemini = async (prompt: string, responseSchema?: any): Promise<string> => {
-    try {
-        const client = getAiClient();
-        const config: { responseMimeType?: string, responseSchema?: any } = {};
-        if (responseSchema) {
-            config.responseMimeType = "application/json";
-            config.responseSchema = responseSchema;
-        }
-        
-        const response: GenerateContentResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config
-        });
-
-        return response.text;
-    } catch (error) {
-        console.error("Error calling Gemini API:", error);
-        // FIX: Propagate errors instead of returning an error string.
-        throw new Error("Could not generate content from AI. Please check API key and configuration.");
-    }
-}
+// --- COGNICRAFT AI SERVICE ---
 
 // Helper to convert image URL (http or data:) to base64 string and mimeType
 async function imageToBase64(imageUrl: string): Promise<{ data: string, mimeType: string }> {
@@ -705,16 +668,50 @@ interface VerificationResult {
     reason: string;
 }
 
-export const geminiService = {
-  summarizeNotes: (notes: string) => runGemini(`Summarize the following notes into concise bullet points:\n\n${notes}`),
-
-  generateQuestions: (topic: string) => runGemini(`Generate 5 likely exam questions (a mix of short and long answer) based on the following topic: ${topic}`),
+export const cogniCraftService = {
+  getClientStatus: () => ({ 
+    isInitialized: aiClientState.isInitialized, 
+    error: aiClientState.initializationError 
+  }),
   
-  createStory: (notes: string) => runGemini(`Convert the following academic notes into an engaging, story-style summary suitable for explaining the concept to a beginner:\n\n${notes}`),
+  _generateContent: async (contents: any, config?: any): Promise<GenerateContentResponse> => {
+    if (!aiClientState.isInitialized || !aiClientState.client) {
+      throw new Error(aiClientState.initializationError || "CogniCraft AI client is not initialized.");
+    }
+    try {
+      const response = await aiClientState.client.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents,
+        config,
+      });
+      return response;
+    } catch (error) {
+      console.error("Error calling CogniCraft AI API:", error);
+      throw new Error("Could not generate content from the AI service. Please check your API key and network connection.");
+    }
+  },
 
-  createMindMap: (topic: string) => runGemini(`Create a text-based mind map for the topic "${topic}". Use indentation to show hierarchy. Start with the central topic and branch out to main ideas, then sub-points.`),
+  summarizeNotes: async (notes: string) => {
+    const response = await cogniCraftService._generateContent(`Summarize the following notes into concise bullet points:\n\n${notes}`);
+    return response.text;
+  },
 
-  generatePPT: (notes: string): Promise<PPTContent> => {
+  generateQuestions: async (topic: string) => {
+    const response = await cogniCraftService._generateContent(`Generate 5 likely exam questions (a mix of short and long answer) based on the following topic: ${topic}`);
+    return response.text;
+  },
+  
+  createStory: async (notes: string) => {
+    const response = await cogniCraftService._generateContent(`Convert the following academic notes into an engaging, story-style summary suitable for explaining the concept to a beginner:\n\n${notes}`);
+    return response.text;
+  },
+
+  createMindMap: async (topic: string) => {
+    const response = await cogniCraftService._generateContent(`Create a text-based mind map for the topic "${topic}". Use indentation to show hierarchy. Start with the central topic and branch out to main ideas, then sub-points.`);
+    return response.text;
+  },
+
+  generatePPT: async (notes: string): Promise<PPTContent> => {
     const schema = {
       type: Type.OBJECT,
       properties: {
@@ -739,10 +736,11 @@ export const geminiService = {
       },
       required: ["title", "slides"]
     };
-    return runGemini(`Convert the following notes into a structured presentation format. Create a main title and at least 3 slides with titles and bullet points:\n\n${notes}`, schema).then(JSON.parse);
+    const response = await cogniCraftService._generateContent(`Convert the following notes into a structured presentation format. Create a main title and at least 3 slides with titles and bullet points:\n\n${notes}`, { responseMimeType: "application/json", responseSchema: schema });
+    return JSON.parse(response.text);
   },
 
-  generateQuiz: (topic: string): Promise<QuizContent> => {
+  generateQuiz: async (topic: string): Promise<QuizContent> => {
       const schema = {
           type: Type.OBJECT,
           properties: {
@@ -763,10 +761,11 @@ export const geminiService = {
           },
           required: ["title", "questions"]
       };
-      return runGemini(`Create a quiz with 5 questions (mix of multiple-choice and short-answer) on the topic: ${topic}. For multiple choice, provide 4 options.`, schema).then(JSON.parse);
+      const response = await cogniCraftService._generateContent(`Create a quiz with 5 questions (mix of multiple-choice and short-answer) on the topic: ${topic}. For multiple choice, provide 4 options.`, { responseMimeType: "application/json", responseSchema: schema });
+      return JSON.parse(response.text);
   },
   
-  generateLessonPlan: (topic: string): Promise<LessonPlanContent> => {
+  generateLessonPlan: async (topic: string): Promise<LessonPlanContent> => {
     const schema = {
         type: Type.OBJECT,
         properties: {
@@ -795,10 +794,14 @@ export const geminiService = {
         },
         required: ["title", "topic", "duration", "objectives", "activities", "assessment"]
     };
-    return runGemini(`Create a detailed lesson plan for the topic: "${topic}". The lesson should be structured with clear objectives, a sequence of activities with time allocations, and an assessment method.`, schema).then(JSON.parse);
+    const response = await cogniCraftService._generateContent(`Create a detailed lesson plan for the topic: "${topic}". The lesson should be structured with clear objectives, a sequence of activities with time allocations, and an assessment method.`, { responseMimeType: "application/json", responseSchema: schema });
+    return JSON.parse(response.text);
   },
 
-  explainConcept: (concept: string) => runGemini(`Explain the following concept in simple terms, as if explaining it to a high school student (ELI5 style):\n\n${concept}`),
+  explainConcept: async (concept: string) => {
+    const response = await cogniCraftService._generateContent(`Explain the following concept in simple terms, as if explaining it to a high school student (ELI5 style):\n\n${concept}`);
+    return response.text;
+  },
 
   verifyFace: async (referenceImageUrl: string, liveImageUrl: string): Promise<VerificationResult> => {
     try {
@@ -827,18 +830,13 @@ export const geminiService = {
             required: ["isMatch", "quality", "reason"]
         };
         
-        const client = getAiClient();
-        const response: GenerateContentResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [referenceImagePart, liveImagePart, textPart] },
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: schema,
-            }
-        });
+        const response: GenerateContentResponse = await cogniCraftService._generateContent(
+            { parts: [referenceImagePart, liveImagePart, textPart] },
+            { responseMimeType: "application/json", responseSchema: schema }
+        );
 
         const resultText = response.text;
-        console.log("Face verification JSON from Gemini:", resultText);
+        console.log("Face verification JSON from AI Service:", resultText);
         const result = JSON.parse(resultText) as VerificationResult;
         
         // Enforce a stricter rule: if the model judges quality as poor, we override the match to false.
@@ -848,7 +846,7 @@ export const geminiService = {
 
         return result;
     } catch (error) {
-        console.error("Error during face verification with Gemini:", error);
+        console.error("Error during face verification with CogniCraft AI:", error);
         // Fail securely. If the API fails, don't allow attendance.
         return { isMatch: false, quality: 'POOR', reason: 'An API or system error occurred during verification.' };
     }

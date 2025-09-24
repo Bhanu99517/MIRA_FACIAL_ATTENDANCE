@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { User, AttendanceRecord } from '../types';
 // FIX: Import the 'Branch' enum to be used in the component.
 import { Branch } from '../types';
-import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, geminiService } from '../services';
+// FIX: The AI service for face verification is exported as `cogniCraftService`, not `geminiService`.
+import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService } from '../services';
 import { Icons } from '../constants';
 import { Modal } from '../components';
 
@@ -267,7 +268,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
     
             try {
                 // The service now returns a detailed object
-                const result = await geminiService.verifyFace(student.referenceImageUrl, dataUrl);
+                const result = await cogniCraftService.verifyFace(student.referenceImageUrl, dataUrl);
                 
                 if (result.quality === 'POOR') {
                     setCameraStatus('failed');
