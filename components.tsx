@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icons } from './constants';
 import { Role } from './types';
 
@@ -11,6 +11,90 @@ export const SplashScreen: React.FC = () => (
     </div>
   </div>
 );
+
+export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGranted }) => {
+    const [permissionStatus, setPermissionStatus] = useState({ camera: 'prompt', geolocation: 'prompt' });
+
+    useEffect(() => {
+        const check = async () => {
+            try {
+                if (!navigator.permissions || !navigator.permissions.query) { return; }
+                // FIX: TypeScript's PermissionName type might not include 'camera' in some environments.
+                // Asserting the type to bypass this compile-time error.
+                const camera = await navigator.permissions.query({ name: 'camera' as PermissionName });
+                const geolocation = await navigator.permissions.query({ name: 'geolocation' });
+                setPermissionStatus({ camera: camera.state, geolocation: geolocation.state });
+            } catch (e) {
+                console.warn("Could not query permissions", e);
+            }
+        };
+        check();
+    }, []);
+    
+    const isDenied = permissionStatus.camera === 'denied' || permissionStatus.geolocation === 'denied';
+
+    const requestPermissions = async () => {
+        try {
+            await navigator.mediaDevices.getUserMedia({ video: true });
+            await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+            });
+            onGranted();
+        } catch (error) {
+            console.error("Error requesting permissions:", error);
+            if(navigator.permissions && navigator.permissions.query) {
+                // FIX: TypeScript's PermissionName type might not include 'camera' in some environments.
+                // Asserting the type to bypass this compile-time error.
+                const camera = await navigator.permissions.query({ name: 'camera' as PermissionName });
+                const geolocation = await navigator.permissions.query({ name: 'geolocation' });
+                setPermissionStatus({ camera: camera.state, geolocation: geolocation.state });
+            }
+        }
+    };
+    
+    return (
+        <div className="flex h-screen w-screen items-center justify-center bg-slate-900 overflow-hidden text-white p-4">
+            <div className="text-center max-w-lg bg-slate-800/50 backdrop-blur-lg border border-white/10 p-8 rounded-2xl shadow-2xl animate-fade-in-down">
+                <Icons.logo className="h-16 w-16 mx-auto text-primary-500 mb-4 animate-logo-breath" />
+                <h1 className="text-3xl font-bold mb-2">Permissions Required</h1>
+                <p className="text-slate-400 mb-6">
+                    Mira Attendance needs access to your camera and location to mark your attendance.
+                </p>
+                <ul className="space-y-4 text-left mb-8">
+                    <li className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg">
+                        <div className="p-2 bg-primary-500/20 rounded-full text-primary-400 mt-1">
+                           <Icons.camera className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold">Camera Access</h3>
+                            <p className="text-sm text-slate-400">Used for facial recognition to verify your identity.</p>
+                        </div>
+                    </li>
+                    <li className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg">
+                         <div className="p-2 bg-accent-500/20 rounded-full text-accent-400 mt-1">
+                             <Icons.location className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold">Location Access</h3>
+                            <p className="text-sm text-slate-400">Used to confirm you are on-campus for attendance.</p>
+                        </div>
+                    </li>
+                </ul>
+                {isDenied ? (
+                    <div className="bg-amber-900/50 border border-amber-500/30 p-4 rounded-lg">
+                        <p className="text-amber-400 font-semibold mb-2">You have previously denied permissions.</p>
+                        <p className="text-sm text-amber-300/80">To use the attendance feature, please enable Camera and Location access for this site in your browser's settings, then refresh the page.</p>
+                    </div>
+                ) : (
+                    <button onClick={requestPermissions} className="w-full mt-6 py-3 bg-primary-600 hover:bg-primary-700 rounded-lg font-semibold transition-all shadow-lg hover:shadow-primary-600/50 transform hover:-translate-y-0.5">
+                        Grant Permissions
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
 
 interface ModalProps {
   isOpen: boolean;

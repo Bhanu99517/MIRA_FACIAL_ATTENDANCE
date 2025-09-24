@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { getUsers, getAttendanceForDate } from '../services';
+import { getUsers, getAttendanceForDate, getAttendanceForDateRange } from '../services';
 import type { User, AttendanceRecord } from '../types';
 import { Role } from '../types';
 
@@ -73,12 +73,15 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 
 
 const ReportsPage: React.FC = () => {
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const today = new Date().toISOString().split('T')[0];
+    const [startDate, setStartDate] = useState(today);
+    const [endDate, setEndDate] = useState(today);
     const [branchFilter, setBranchFilter] = useState('All Students');
     const [search, setSearch] = useState('');
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isExporting, setIsExporting] = useState(false);
 
     useEffect(() => {
         getUsers().then(setAllUsers);
@@ -86,10 +89,11 @@ const ReportsPage: React.FC = () => {
 
     useEffect(() => {
         setLoading(true);
-        getAttendanceForDate(date)
+        // UI always shows data for the END date of the range
+        getAttendanceForDate(endDate)
             .then(setAttendance)
             .finally(() => setLoading(false));
-    }, [date]);
+    }, [endDate]);
 
     const { filteredUsers, attendanceMap, presentCount, totalCount } = useMemo(() => {
         const isFacultyView = branchFilter === 'Faculty';
@@ -112,7 +116,8 @@ const ReportsPage: React.FC = () => {
             );
         }
 
-        const map = new Map(attendance.map(a => [a.userId, a]));
+        // FIX: Explicitly type the Map to ensure correct type inference for `.get()`.
+        const map = new Map<string, AttendanceRecord>(attendance.map(a => [a.userId, a]));
         const present = users.filter(u => map.has(u.id) && map.get(u.id)?.status === 'Present').length;
         
         return {
@@ -129,9 +134,72 @@ const ReportsPage: React.FC = () => {
     ];
     const COLORS = ['#10B981', '#EF4444'];
 
-    const handleExport = () => {
-        console.log("Exporting data for", date, branchFilter);
-        alert('CSV export simulation. Check console for details.');
+    const handleExport = async () => {
+        setIsExporting(true);
+        try {
+            const recordsInRange = await getAttendanceForDateRange(startDate, endDate);
+
+            // FIX: Explicitly type the Map to ensure correct type inference for `user`.
+            const usersById = new Map<string, User>(allUsers.map(u => [u.id, u]));
+
+            const isFacultyView = branchFilter === 'Faculty';
+            const normalizedSearch = search.toLowerCase().replace(/-/g, '');
+
+            const filteredRecords = recordsInRange.filter((record: AttendanceRecord) => {
+                const user = usersById.get(record.userId);
+                if (!user) return false;
+
+                const branchMatch = isFacultyView
+                    ? (user.role === Role.FACULTY || user.role === Role.PRINCIPAL || user.role === Role.HOD)
+                    : branchFilter === 'All Students'
+                        ? user.role === Role.STUDENT
+                        : user.role === Role.STUDENT && user.branch === branchFilter;
+
+                if (!branchMatch) return false;
+
+                if (search) {
+                    const searchMatch = user.name.toLowerCase().includes(normalizedSearch) ||
+                                      user.pin.toLowerCase().replace(/-/g, '').includes(normalizedSearch);
+                    return searchMatch;
+                }
+
+                return true;
+            });
+            
+            if (filteredRecords.length === 0) {
+                alert("No data to export for the selected filters.");
+                return;
+            }
+
+            const csvHeader = ["Date", "Name", "PIN", "Status", "Timestamp", "Location Status", "Coordinates"];
+            const csvRows = filteredRecords.map(rec => [
+                rec.date,
+                `"${rec.userName.replace(/"/g, '""')}"`,
+                rec.userPin,
+                rec.status,
+                rec.timestamp || 'N/A',
+                rec.location?.status || 'N/A',
+                rec.location?.coordinates || 'N/A'
+            ].join(','));
+            
+            const csvContent = [csvHeader.join(','), ...csvRows].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `mira_attendance_report_${startDate}_to_${endDate}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (error) {
+            console.error("Failed to export CSV:", error);
+            alert("An error occurred during export. Please try again.");
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     return (
@@ -143,11 +211,33 @@ const ReportsPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-lg flex items-center gap-2 flex-wrap">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-lg flex items-center gap-4 flex-wrap">
+                 <label htmlFor="start-date" className="text-sm font-medium text-slate-500 dark:text-slate-400 sr-only">Start Date</label>
                  <input 
+                    id="start-date"
                     type="date" 
-                    value={date} 
-                    onChange={e => setDate(e.target.value)} 
+                    value={startDate} 
+                    onChange={e => {
+                        const newStartDate = e.target.value;
+                        setStartDate(newStartDate);
+                        if (new Date(newStartDate) > new Date(endDate)) {
+                            setEndDate(newStartDate);
+                        }
+                    }} 
+                    className="p-2 border rounded-lg bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" 
+                />
+                 <label htmlFor="end-date" className="text-sm font-medium text-slate-500 dark:text-slate-400 sr-only">End Date</label>
+                 <input 
+                    id="end-date"
+                    type="date" 
+                    value={endDate} 
+                    onChange={e => {
+                        const newEndDate = e.target.value;
+                        setEndDate(newEndDate);
+                        if (new Date(newEndDate) < new Date(startDate)) {
+                            setStartDate(newEndDate);
+                        }
+                    }}
                     className="p-2 border rounded-lg bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" 
                 />
                 <select 
@@ -164,12 +254,14 @@ const ReportsPage: React.FC = () => {
                     onChange={e => setSearch(e.target.value)}
                     className="flex-grow p-2 border rounded-lg bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
-                <button onClick={handleExport} className="p-2 px-4 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50">Export CSV</button>
+                <button onClick={handleExport} disabled={isExporting} className="p-2 px-4 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 disabled:bg-primary-800 disabled:cursor-not-allowed">
+                    {isExporting ? 'Exporting...' : 'Export CSV'}
+                </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-                    <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-gray-100">{branchFilter} Attendance for {new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</h3>
+                    <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-gray-100">{branchFilter} Attendance for {new Date(endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</h3>
                     {loading ? <p>Loading...</p> : (
                         branchFilter === 'Faculty' 
                             ? <FacultyList users={filteredUsers} attendanceMap={attendanceMap} />

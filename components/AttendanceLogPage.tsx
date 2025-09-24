@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Role, Branch, User, Page, AttendanceRecord, Application, PPTContent, QuizContent } from '../types';
-import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail } from '../services';
+import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, geminiService } from '../services';
 import { Icons } from '../constants';
+import { Modal } from '../components';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 // --- LOCAL ICONS ---
@@ -47,24 +48,51 @@ const AttendanceTrendChart: React.FC<{ data: any[] }> = ({ data }) => {
     );
 };
 
+// Helper function for basic image preprocessing (contrast)
+const adjustContrast = (ctx: CanvasRenderingContext2D, contrast: number): void => {
+    const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const data = imageData.data;
+    const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+    for (let i = 0; i < data.length; i += 4) {
+        data[i] = factor * (data[i] - 128) + 128;
+        data[i + 1] = factor * (data[i + 1] - 128) + 128;
+        data[i + 2] = factor * (data[i + 2] - 128) + 128;
+    }
+    ctx.putImageData(imageData, 0, 0);
+};
+
 
 const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }> = ({ refreshDashboardStats }) => {
+    type LocationStatus = 'On-Campus' | 'Off-Campus' | 'Fetching' | 'Error' | 'Idle';
+    interface LocationData {
+      status: LocationStatus;
+      distance: number | null;
+      coordinates: { latitude: number; longitude: number } | null;
+      error: string;
+    }
+
     const [step, setStep] = useState<'capture' | 'verifying' | 'result'>('capture');
     const [pinParts, setPinParts] = useState({ prefix: '23210', branch: 'EC', roll: '' });
     const [student, setStudent] = useState<User | null>(null);
     const [attendanceResult, setAttendanceResult] = useState<AttendanceRecord | null>(null);
     const [historicalData, setHistoricalData] = useState<AttendanceRecord[]>([]);
-    const [cameraStatus, setCameraStatus] = useState<'idle' | 'aligning' | 'liveness' | 'verifying' | 'failed' | 'retry'>('idle');
+    const [cameraStatus, setCameraStatus] = useState<'idle' | 'aligning' | 'awaitingBlink' | 'blinkDetected' | 'verifying' | 'failed'>('idle');
     const [cameraError, setCameraError] = useState('');
     const [alreadyMarked, setAlreadyMarked] = useState(false);
-    const [locationError, setLocationError] = useState('');
+    const [capturedImage, setCapturedImage] = useState<string | null>(null);
+    const [locationData, setLocationData] = useState<LocationData>({ status: 'Idle', distance: null, coordinates: null, error: '' });
+    const [showOffCampusModal, setShowOffCampusModal] = useState(false);
+    const [referenceImageError, setReferenceImageError] = useState('');
 
     const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const fullPin = useMemo(() => `${pinParts.prefix}-${pinParts.branch}-${pinParts.roll}`, [pinParts]);
 
     const handlePinChange = useCallback(async (newPin: string) => {
         setAlreadyMarked(false);
         setCameraError('');
+        setCapturedImage(null);
+        setReferenceImageError('');
         const roll = newPin.replace(/\D/g, '').slice(0, 3);
         setPinParts(p => ({...p, roll}));
 
@@ -76,7 +104,12 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                     setStudent(null);
                     setAlreadyMarked(true);
                 } else {
-                    setStudent(user);
+                    if (!user.referenceImageUrl) {
+                        setStudent(user);
+                        setReferenceImageError('Reference photo is missing. Please ask an admin to upload one in the Manage Users section before marking attendance.');
+                    } else {
+                        setStudent(user);
+                    }
                 }
             } else {
                 setStudent(null);
@@ -86,108 +119,23 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         }
     }, [pinParts.prefix, pinParts.branch]);
 
-    const startCamera = async () => {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 480 } });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    videoRef.current.onloadedmetadata = () => {
-                        setCameraStatus('aligning');
-                        setTimeout(() => {
-                             setCameraStatus('liveness');
-                             setTimeout(() => {
-                                setCameraStatus('verifying');
-                                setTimeout(() => {
-                                    const isMatch = Math.random() > 0.3; // 70% success rate
-                                    if (isMatch) {
-                                        handleMarkAttendance();
-                                    } else {
-                                        setCameraStatus('failed');
-                                        setCameraError("Face not recognized. Please ensure good lighting and try again.");
-                                        if (videoRef.current?.srcObject) {
-                                            (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-                                        }
-                                        setCameraStatus('retry');
-                                    }
-                                }, 2500);
-                             }, 2000);
-                        }, 2500);
-                    }
-                }
-            } catch (err) {
-                setCameraError('Camera access denied. Please enable camera permissions in your browser settings.');
-                setCameraStatus('idle');
-            }
-        }
-    };
-    
-    const handleStartVerification = () => {
-        if (!student) return;
-        setCameraError('');
-        setStep('verifying');
-        startCamera();
-    };
-
-    const handleMarkAttendance = async () => {
+    const handleMarkAttendance = useCallback(async () => {
         if(!student) return;
 
-        let userCoordinates: { latitude: number, longitude: number } | null = null;
-        try {
-            if (navigator.geolocation) {
-                userCoordinates = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => resolve({
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude
-                        }),
-                        (error) => reject(error),
-                        { timeout: 10000 } // Add a timeout
-                    );
-                });
-            }
-        } catch(e) {
-            let errorMessage = 'Could not get location. Marking attendance without it.';
-            let logMessage = "Could not get location";
-            
-            if (e instanceof GeolocationPositionError) {
-                logMessage = `${logMessage}: ${e.message} (code: ${e.code})`;
-                switch (e.code) {
-                    case e.PERMISSION_DENIED:
-                        errorMessage = 'Location access was denied. Marking attendance without location.';
-                        break;
-                    case e.POSITION_UNAVAILABLE:
-                        errorMessage = 'Location information is unavailable. Marking attendance without location.';
-                        break;
-                    case e.TIMEOUT:
-                        errorMessage = 'The request to get user location timed out. Marking attendance without location.';
-                        break;
-                }
-            } else if (e instanceof Error) {
-                logMessage = `${logMessage}: ${e.message}`;
-            }
-
-            console.error(logMessage);
-            setLocationError(errorMessage);
-        }
-
-        const result = await markAttendance(student.id, userCoordinates);
+        const result = await markAttendance(student.id, locationData.coordinates);
         await refreshDashboardStats(); // Refresh dashboard stats
         const history = await getAttendanceForUser(student.id);
         setAttendanceResult(result);
         setHistoricalData(history);
         
-        // Stop camera stream
         if (videoRef.current?.srcObject) {
             (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
         }
         
         setStep('result');
 
-        // --- Send Notifications ---
         const notificationBody = `Dear Parent/Student,\n\nThis is to inform you that attendance for ${student.name} (PIN: ${student.pin}) has been marked as PRESENT.\n\nTimestamp: ${result.timestamp}\nLocation Status: ${result.location?.status} (${result.location?.coordinates})\n\nRegards,\nMira Attendance System`;
         
-        // Use a fire-and-forget approach with error handling to avoid unhandled promise rejections
         const sendNotification = async (email: string, subject: string, body: string) => {
             try {
                 await sendEmail(email, subject, body);
@@ -196,7 +144,6 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
             }
         };
         
-        // Email Notifications
         if (student.parent_email && student.parent_email_verified) {
             sendNotification(student.parent_email, `Attendance Marked for ${student.name}`, notificationBody);
         }
@@ -204,12 +151,144 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
              sendNotification(student.email, `Your Attendance has been Marked`, notificationBody);
         }
 
-        // WhatsApp Notification to a fixed number
-        const hardcodedPhoneNumber = '919347856661';
-        const whatsappMessage = `Attendance for ${student.name} (PIN: ${student.pin}) has been marked PRESENT at ${result.timestamp}. Location: ${result.location?.status || 'N/A'}${result.location?.coordinates ? ` (${result.location.coordinates})` : ''}.`;
-        const whatsappUrl = `https://wa.me/${hardcodedPhoneNumber}?text=${encodeURIComponent(whatsappMessage)}`;
-        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+        if(student.phoneNumber) {
+            const whatsappMessage = `Attendance for ${student.name} (PIN: ${student.pin}) has been marked PRESENT at ${result.timestamp}. Location: ${result.location?.status || 'N/A'}${result.location?.coordinates ? ` (${result.location.coordinates})` : ''}.`;
+            const whatsappUrl = `https://wa.me/${student.phoneNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+            window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+        }
+    }, [student, refreshDashboardStats, locationData.coordinates]);
+
+    const handleCapture = useCallback(async () => {
+        if (videoRef.current && canvasRef.current && student?.referenceImageUrl) {
+            setCameraStatus('verifying');
+            
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            if (context) {
+                // Flip the image horizontally as the video feed is mirrored
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Pre-process image: apply a slight contrast enhancement
+                adjustContrast(context, 20); // 20 is a moderate contrast value
+            }
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            setCapturedImage(dataUrl);
+    
+            if (videoRef.current?.srcObject) {
+                (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+            }
+    
+            try {
+                // The service now returns a detailed object
+                const result = await geminiService.verifyFace(student.referenceImageUrl, dataUrl);
+                
+                if (result.quality === 'POOR') {
+                    setCameraStatus('failed');
+                    // Use the reason from the API to guide the user
+                    setCameraError(`Verification failed: ${result.reason}. Please try again.`);
+                } else if (result.isMatch) {
+                    // Quality is GOOD and it's a match
+                    if (locationData.status === 'Off-Campus') {
+                        setShowOffCampusModal(true);
+                    } else {
+                        handleMarkAttendance();
+                    }
+                } else {
+                    // Quality is GOOD but not a match
+                    setCameraStatus('failed');
+                    setCameraError("Face not recognized. The captured photo does not match the reference image.");
+                }
+            } catch (e) {
+                 console.error("Face verification API call failed", e);
+                setCameraStatus('failed');
+                setCameraError("Could not verify face due to a system error. Please try again.");
+            }
+        }
+    }, [student, handleMarkAttendance, locationData.status]);
+
+    const startCamera = async () => {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            try {
+                setCapturedImage(null);
+                setCameraError('');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 480 } });
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    videoRef.current.onloadedmetadata = () => {
+                        setCameraStatus('aligning');
+                        // Removed the simulated quality check. Proceed directly to liveness check.
+                        setTimeout(() => {
+                            setCameraStatus('awaitingBlink');
+                        }, 1500); // Shortened the alignment time
+                    }
+                }
+            } catch (err) {
+                setCameraError('Camera access denied. Please enable camera permissions in your browser settings.');
+                setCameraStatus('failed');
+            }
+        }
     };
+    
+    const handleStartVerification = () => {
+        if (!student) return;
+        setCameraError('');
+        setStep('verifying');
+        setLocationData({ status: 'Fetching', distance: null, coordinates: null, error: '' });
+
+        const fetchLocationAndStartCamera = async () => {
+            try {
+                if (navigator.geolocation) {
+                    const coords = await new Promise<{ latitude: number, longitude: number }>((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => resolve({
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude
+                            }),
+                            (error) => reject(error),
+                            { timeout: 5000 }
+                        );
+                    });
+                    const distance = getDistanceInKm(coords.latitude, coords.longitude, CAMPUS_LAT, CAMPUS_LON);
+                    const status: LocationStatus = distance <= CAMPUS_RADIUS_KM ? 'On-Campus' : 'Off-Campus';
+                    setLocationData({ status, distance, coordinates: coords, error: '' });
+                } else {
+                     throw new Error("Geolocation is not supported.");
+                }
+            } catch (e) {
+                let errorMessage = 'Could not get location.';
+                 if (e instanceof GeolocationPositionError) {
+                    if (e.code === e.PERMISSION_DENIED) errorMessage = 'Location access denied.';
+                    else if (e.code === e.TIMEOUT) errorMessage = 'Location request timed out.';
+                 } else if (e instanceof Error) {
+                     errorMessage = e.message;
+                 }
+                setLocationData({ status: 'Error', distance: null, coordinates: null, error: errorMessage });
+            } finally {
+                startCamera();
+            }
+        };
+        fetchLocationAndStartCamera();
+    };
+
+    useEffect(() => {
+        if (cameraStatus === 'awaitingBlink') {
+            const blinkTimer = setTimeout(() => {
+                setCameraStatus('blinkDetected');
+            }, 2000); // Simulate 2s wait for a blink
+            return () => clearTimeout(blinkTimer);
+        }
+    }, [cameraStatus]);
+
+    useEffect(() => {
+        if (cameraStatus === 'blinkDetected') {
+            handleCapture();
+        }
+    }, [cameraStatus, handleCapture]);
 
     const reset = () => {
         setStep('capture');
@@ -220,7 +299,9 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         setCameraStatus('idle');
         setCameraError('');
         setAlreadyMarked(false);
-        setLocationError('');
+        setLocationData({ status: 'Idle', distance: null, coordinates: null, error: '' });
+        setCapturedImage(null);
+        setReferenceImageError('');
     };
     
     // --- Result View Components & Data ---
@@ -367,7 +448,11 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                             Recorded at: <span className="font-semibold text-slate-700 dark:text-slate-200">{attendanceResult?.timestamp}</span>
                         </p>
                         <p>
-                            Geo-Fence: <span className="font-semibold text-green-600">{attendanceResult?.location?.status}</span>
+                           Geo-Fence:{' '}
+                           <span className={`font-semibold ${attendanceResult?.location?.status === 'On-Campus' ? 'text-green-600' : 'text-amber-500'}`}>
+                               {attendanceResult?.location?.status}
+                               {typeof attendanceResult?.location?.distance_km === 'number' && ` (approx. ${attendanceResult.location.distance_km.toFixed(2)} km away)`}
+                           </span>
                         </p>
                         {attendanceResult?.location?.coordinates && (
                             <p className="flex items-center justify-center gap-1">
@@ -375,15 +460,6 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                             </p>
                         )}
                     </div>
-                    {locationError && (
-                        <div className="mt-4 text-sm text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 p-3 rounded-lg flex gap-3 items-start text-left">
-                            <MapPinIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                            <div>
-                                <strong className="font-semibold">Location Notice</strong>
-                                <p>{locationError}</p>
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -431,7 +507,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                             <div className="border-t border-slate-200 dark:border-slate-700 mt-4 pt-4 space-y-2 text-sm">
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-500 dark:text-slate-400 font-medium">Branch & Year</span>
-                                    <span className="font-semibold text-slate-700 dark:text-slate-200">{student?.branch} / {student?.year ? `20${student.year}` : 'N/A'}</span>
+                                    <span className="font-semibold text-slate-700 dark:text-slate-200">{student?.branch} / {student?.year ? `I` : 'N/A'}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-500 dark:text-slate-400 font-medium">Phone</span>
@@ -491,126 +567,204 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
     }
 
     const verificationMessages: {[key: string]: string} = {
-        aligning: 'Align student\'s face in the circle.',
-        liveness: 'Liveness check: Please ask the student to blink.',
-        verifying: 'Recognizing face... Comparing with profile.',
-        failed: 'Recognition Failed.',
-        retry: 'Recognition Failed.',
+        aligning: "Analyzing conditions... Hold still.",
+        awaitingBlink: "Liveness check: Please blink now.",
+        blinkDetected: "Blink detected! Capturing photo...",
+        verifying: 'Verifying identity... Please wait.',
+        failed: 'Verification Failed',
+    };
+
+    const handleOffCampusCancellation = () => {
+        setShowOffCampusModal(false);
+        setCameraStatus('failed');
+        setCameraError("Attendance marking cancelled due to off-campus location.");
     };
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center h-[calc(100vh-5rem)]">
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl animate-fade-in-down">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Student Identification</h2>
-                
-                <div className="mt-6">
-                    <div className="group flex items-center w-full bg-slate-200/20 dark:bg-slate-900/30 border border-slate-400 dark:border-slate-600 rounded-lg p-3 text-xl font-mono tracking-wider focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500/50 transition-all">
-                        <select
-                            value={pinParts.prefix}
-                            onChange={e => {
-                                setStudent(null);
-                                setAlreadyMarked(false);
-                                setPinParts(p => ({ ...p, prefix: e.target.value, roll: '' }));
-                            }}
-                            className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold"
-                        >
-                            {['25210', '24210', '23210', '22210', '21210'].map(prefix => (
-                                <option key={prefix} value={prefix} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{prefix}</option>
-                            ))}
-                        </select>
-                        <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
-                        
-                        <select
-                            value={pinParts.branch}
-                            onChange={e => {
-                                setStudent(null);
-                                setAlreadyMarked(false);
-                                setPinParts(p => ({...p, branch: e.target.value, roll: ''}));
-                            }}
-                            className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold"
-                        >
-                            {Object.values(Branch).map(b => <option key={b} value={b} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{b}</option>)}
-                        </select>
-                        
-                        <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
-                        
-                        <input
-                            value={pinParts.roll}
-                            onChange={e => handlePinChange(e.target.value)}
-                            placeholder="001"
-                            maxLength={3}
-                            className="w-24 bg-transparent outline-none text-slate-800 dark:text-white placeholder:text-slate-500"
-                        />
+        <>
+            <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center h-[calc(100vh-5rem)]">
+                <canvas ref={canvasRef} className="hidden" />
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl animate-fade-in-down">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Student Identification</h2>
+                    
+                    <div className="mt-6">
+                        <div className="group flex items-center w-full bg-slate-200/20 dark:bg-slate-900/30 border border-slate-400 dark:border-slate-600 rounded-lg p-3 text-xl font-mono tracking-wider focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500/50 transition-all">
+                            <select
+                                value={pinParts.prefix}
+                                onChange={e => {
+                                    setStudent(null);
+                                    setAlreadyMarked(false);
+                                    setPinParts(p => ({ ...p, prefix: e.target.value, roll: '' }));
+                                }}
+                                className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold"
+                            >
+                                {['25210', '24210', '23210', '22210', '21210'].map(prefix => (
+                                    <option key={prefix} value={prefix} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{prefix}</option>
+                                ))}
+                            </select>
+                            <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
+                            
+                            <select
+                                value={pinParts.branch}
+                                onChange={e => {
+                                    setStudent(null);
+                                    setAlreadyMarked(false);
+                                    setPinParts(p => ({...p, branch: e.target.value, roll: ''}));
+                                }}
+                                className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold"
+                            >
+                                {Object.values(Branch).map(b => <option key={b} value={b} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{b}</option>)}
+                            </select>
+                            
+                            <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
+                            
+                            <input
+                                value={pinParts.roll}
+                                onChange={e => handlePinChange(e.target.value)}
+                                placeholder="001"
+                                maxLength={3}
+                                className="w-24 bg-transparent outline-none text-slate-800 dark:text-white placeholder:text-slate-500"
+                            />
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">Select Prefix & Branch, then type Roll No. The student's name will appear below.</p>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">Select Prefix & Branch, then type Roll No. The student's name will appear below.</p>
-                </div>
-                
-                <div className="mt-8 h-12">
-                    {student && (
-                        <p className="text-center text-2xl font-bold text-primary-600 dark:text-primary-400 animate-fade-in">{student.name}</p>
-                    )}
-                    {alreadyMarked && (
-                         <p className="text-center text-lg font-semibold text-amber-500 animate-fade-in">Attendance already marked for today.</p>
-                    )}
-                </div>
-                
-                {cameraStatus === 'retry' ? (
-                     <button 
-                        onClick={handleStartVerification}
-                        className="w-full mt-8 py-3 bg-amber-500 text-white text-lg font-medium rounded-lg hover:bg-amber-600 transition-colors"
-                    >
-                        Try Again
-                    </button>
-                ) : (
+                    
+                    <div className="mt-8 min-h-[3rem]">
+                        {student && !referenceImageError && (
+                            <p className="text-center text-2xl font-bold text-primary-600 dark:text-primary-400 animate-fade-in">{student.name}</p>
+                        )}
+                         {referenceImageError && (
+                            <p className="text-center text-lg font-semibold text-red-500 animate-fade-in">{referenceImageError}</p>
+                        )}
+                        {alreadyMarked && (
+                            <p className="text-center text-lg font-semibold text-amber-500 animate-fade-in">Attendance already marked for today.</p>
+                        )}
+                    </div>
+                    
                     <button 
                         onClick={handleStartVerification}
-                        disabled={!student || step !== 'capture'} 
+                        disabled={!student || !!referenceImageError || step !== 'capture'} 
                         className="w-full mt-8 py-3 bg-slate-700 text-white/90 text-lg font-medium rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
                     >
                         Mark Attendance
                     </button>
-                )}
-            </div>
-            
-            <div className="flex flex-col items-center justify-center text-center">
-                {step === 'verifying' && cameraStatus === 'verifying' ? (
-                    <div className="animate-fade-in">
-                        <div className="flex items-center justify-center gap-4">
-                            <div className="flex flex-col items-center">
-                                <div className="relative w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700/50 overflow-hidden shadow-inner">
-                                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                </div>
+                
+                <div className="flex flex-col items-center justify-center text-center">
+                    {/* FIX: Refactored complex ternary to a simpler nested structure to avoid TypeScript control flow analysis issues. */}
+                    {step === 'verifying' ? (
+                        cameraStatus !== 'failed' ? (
+                            capturedImage ? (
+                                <div className="animate-fade-in">
+                                    <div className="flex items-center justify-center gap-4">
+                                        <div className="flex flex-col items-center">
+                                            <div className="relative w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700/50 overflow-hidden shadow-inner">
+                                                <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
+                                            </div>
+                                            <p className="text-sm font-semibold mt-2">Captured Photo</p>
+                                        </div>
+                                        <Icons.send className="w-8 h-8 text-slate-400 shrink-0" />
+                                        <div className="flex flex-col items-center">
+                                            <div className="relative w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700/50 overflow-hidden shadow-inner">
+                                                <img src={student?.referenceImageUrl || student?.imageUrl} alt="Student Reference" className="w-full h-full object-cover" />
+                                            </div>
+                                            <p className="text-sm font-semibold mt-2">Reference Photo</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-sm font-semibold mt-2">Live Feed</p>
-                            </div>
-                            <Icons.send className="w-8 h-8 text-slate-400 shrink-0" />
-                            <div className="flex flex-col items-center">
-                                <div className="relative w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700/50 overflow-hidden shadow-inner">
-                                    <img src={student?.referenceImageUrl || student?.imageUrl} alt="Student Reference" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="relative w-80 h-80 rounded-full bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner">
+                                    <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover transition-opacity duration-500 -scale-x-100 ${step === 'verifying' ? 'opacity-100' : 'opacity-0'}`} />
+                                    {/* FIX: Removed redundant 'cameraStatus === 'failed'' check from className ternary. This check is inside a block where 'cameraStatus' is already confirmed to not be 'failed', which was causing a TypeScript type error. */}
+                                    <div className={`absolute inset-0 rounded-full border-8 transition-all duration-500 ${
+                                        cameraStatus === 'aligning' ? 'border-amber-500' : 
+                                        cameraStatus === 'awaitingBlink' ? 'border-blue-500' :
+                                        cameraStatus === 'blinkDetected' ? 'border-green-500' :
+                                        cameraStatus === 'verifying' ? 'border-primary-500 animate-pulse' :
+                                        'border-transparent'
+                                    }`}></div>
                                 </div>
-                                <p className="text-sm font-semibold mt-2">Reference Photo</p>
+                            )
+                        ) : (
+                            <div className="w-80 h-80 rounded-full bg-red-500/10 flex items-center justify-center border-4 border-red-500/20">
+                                <Icons.xCircle className="w-24 h-24 text-red-500/50" />
                             </div>
+                        )
+                    ) : (
+                        <div className="relative w-80 h-80 rounded-full bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner">
+                            <Icons.logo className="w-24 h-24 text-slate-400 dark:text-slate-600" />
                         </div>
+                    )}
+                    <div className="mt-6 min-h-[4.5rem] flex flex-col items-center justify-center">
+                        {step === 'verifying' && cameraStatus !== 'failed' && (
+                            <>
+                                <p className="text-lg font-semibold animate-fade-in">{verificationMessages[cameraStatus]}</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                    {locationData.status === 'Fetching' && 'Getting location...'}
+                                    {locationData.status === 'On-Campus' && 'Location: On-Campus'}
+                                    {locationData.status === 'Off-Campus' && `Location: Off-Campus (${locationData.distance?.toFixed(2)} km away)`}
+                                    {locationData.status === 'Error' && `Location Error: ${locationData.error}`}
+                                </p>
+                            </>
+                        )}
+                        {step === 'verifying' && cameraStatus === 'failed' && (
+                             <div className="animate-fade-in text-center">
+                                <p className="text-xl font-bold text-red-500">{verificationMessages['failed']}</p>
+                                {cameraError && <p className="text-base text-slate-600 dark:text-slate-300 mt-1">{cameraError}</p>}
+                                <div className="mt-4 flex gap-4 justify-center">
+                                    <button
+                                        onClick={reset}
+                                        className="px-4 py-2 bg-slate-200 dark:bg-slate-600 font-semibold rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleStartVerification}
+                                        className="px-4 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700"
+                                    >
+                                        Try Again
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        {step === 'capture' && <p className="text-slate-500">Camera will activate after student selection.</p>}
                     </div>
-                ) : (
-                    <div className="relative w-80 h-80 rounded-full bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner">
-                        <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover transition-opacity duration-500 ${step === 'verifying' ? 'opacity-100' : 'opacity-0'}`} />
-                        {step !== 'verifying' && <Icons.logo className="w-24 h-24 text-slate-400 dark:text-slate-600" />}
-                        <div className={`absolute inset-0 rounded-full border-8 transition-all duration-500 ${
-                            cameraStatus === 'aligning' ? 'border-amber-500' : 
-                            cameraStatus === 'liveness' ? 'border-blue-500 animate-pulse' :
-                            cameraStatus === 'verifying' ? 'border-primary-500' :
-                            cameraStatus === 'failed' ? 'border-red-500' :
-                            'border-transparent'
-                        }`}></div>
-                    </div>
-                )}
-                <div className="mt-6 h-10">
-                    {step === 'verifying' && <p className="text-lg font-semibold animate-fade-in">{verificationMessages[cameraStatus]}</p>}
-                    {cameraError && <p className="text-red-500 text-sm font-semibold">{cameraError}</p>}
-                    {step === 'capture' && !cameraError && <p className="text-slate-500">Camera will activate after student selection.</p>}
                 </div>
             </div>
-        </div>
+            <Modal
+                isOpen={showOffCampusModal}
+                onClose={handleOffCampusCancellation}
+                title="Location Warning"
+            >
+                <div className="text-center">
+                    <MapPinIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+                    <p className="text-lg text-slate-700 dark:text-slate-300">
+                    You appear to be approximately{' '}
+                    <span className="font-bold text-slate-900 dark:text-white">
+                        {locationData.distance?.toFixed(2)} km
+                    </span>{' '}
+                    away from campus.
+                    </p>
+                    <p className="mt-2 text-slate-500 dark:text-slate-400">
+                    Are you sure you want to proceed with marking attendance?
+                    </p>
+                    <div className="mt-6 flex justify-center gap-4">
+                    <button
+                        onClick={handleOffCampusCancellation}
+                        className="px-4 py-2 font-semibold rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => { setShowOffCampusModal(false); handleMarkAttendance(); }}
+                        className="px-4 py-2 font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700"
+                    >
+                        Proceed Anyway
+                    </button>
+                    </div>
+                </div>
+            </Modal>
+        </>
     );
 };
 

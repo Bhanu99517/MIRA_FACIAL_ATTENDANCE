@@ -6,7 +6,7 @@ import { Icons, navLinks } from './constants';
 import { Role, Branch, User, Page, AttendanceRecord, Application, PPTContent, QuizContent, LessonPlanContent, LLMOutput } from './types';
 import { login as apiLogin, getFaculty, getDashboardStats, getStudentByPin, markAttendance, getAttendanceForUser, sendEmail } from './services';
 import { geminiService } from './services';
-import { SplashScreen, Modal, StatCard, ActionCard } from './components';
+import { SplashScreen, PermissionsPrompt, Modal, StatCard, ActionCard } from './components';
 import ManageUsersPage from './components/ManageUsersPage';
 import ReportsPage from './components/ReportsPage';
 import ApplicationsPage from './components/ApplicationsPage';
@@ -565,18 +565,71 @@ const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = (
 const MainApp: React.FC = () => {
     const { user, refreshDashboardStats } = useAppContext();
     const [showSplash, setShowSplash] = useState(true);
+    const [permissionsState, setPermissionsState] = useState<'checking' | 'granted' | 'prompt_or_denied'>('checking');
 
     useEffect(() => {
         const timer = setTimeout(() => setShowSplash(false), 1500);
         return () => clearTimeout(timer);
     }, []);
 
-    if (showSplash) {
+    useEffect(() => {
+        if (!user) {
+            setPermissionsState('granted'); // No user, no need for permissions check
+            return;
+        }
+
+        // Only check for users who need to mark attendance. Other roles can proceed.
+        const needsPermissions = user.role === Role.FACULTY || user.role === Role.STUDENT;
+        if (!needsPermissions) {
+            setPermissionsState('granted');
+            return;
+        }
+
+        const checkPermissions = async () => {
+            setPermissionsState('checking');
+            try {
+                // Check if the Permission API is supported
+                if (!navigator.permissions || !navigator.permissions.query) {
+                    console.warn("Permissions API not supported, will prompt on use.");
+                    setPermissionsState('granted'); // Fallback: can't check upfront
+                    return;
+                }
+                // FIX: TypeScript's PermissionName type might not include 'camera' in some environments.
+                // Asserting the type to bypass this compile-time error.
+                const cameraStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
+                const geolocationStatus = await navigator.permissions.query({ name: 'geolocation' });
+
+                if (cameraStatus.state === 'granted' && geolocationStatus.state === 'granted') {
+                    setPermissionsState('granted');
+                } else {
+                    setPermissionsState('prompt_or_denied');
+                }
+
+                // Listen for changes
+                const onPermissionChange = () => checkPermissions();
+                cameraStatus.onchange = onPermissionChange;
+                geolocationStatus.onchange = onPermissionChange;
+
+            } catch (e) {
+                console.error("Error checking permissions:", e);
+                setPermissionsState('granted'); // Fallback on error
+            }
+        };
+
+        checkPermissions();
+
+    }, [user]);
+
+    if (showSplash || (user && permissionsState === 'checking')) {
         return <SplashScreen />;
     }
 
     if (!user) {
         return <LoginPage />;
+    }
+
+    if (permissionsState === 'prompt_or_denied') {
+        return <PermissionsPrompt onGranted={() => setPermissionsState('granted')} />;
     }
 
     return (

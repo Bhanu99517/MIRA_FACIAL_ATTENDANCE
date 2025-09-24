@@ -47,6 +47,7 @@ export interface AttendanceRecord {
   location?: {
     status: 'On-Campus' | 'Off-Campus';
     coordinates?: string;
+    distance_km?: number;
   };
 }
 

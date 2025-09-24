@@ -210,7 +210,7 @@ const generateInitialData = () => {
         let MOCK_ATTENDANCE: AttendanceRecord[] = [];
         const today = new Date();
         MOCK_USERS.filter(u => u.role === Role.STUDENT || u.role === Role.FACULTY).forEach(user => {
-            // Start from i = 1 to skip generating attendance for today.
+            // Start from i = 1 to NOT include generating attendance for today.
             for(let i = 1; i < 90; i++){
                 const date = new Date();
                 date.setDate(today.getDate() - i);
@@ -369,6 +369,18 @@ export const getAttendanceForDate = async (date: string): Promise<AttendanceReco
     return delay((storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.date === date));
 };
 
+export const getAttendanceForDateRange = async (startDate: string, endDate: string): Promise<AttendanceRecord[]> => {
+    const allAttendance = storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || [];
+    // The dates are strings in "YYYY-MM-DD" format. String comparison works.
+    const filtered = allAttendance.filter(a => a.date >= startDate && a.date <= endDate);
+    // Sort by date descending, then by timestamp descending
+    return delay(filtered.sort((a, b) => {
+        const dateComparison = b.date.localeCompare(a.date);
+        if (dateComparison !== 0) return dateComparison;
+        return (b.timestamp || '').localeCompare(a.timestamp || '');
+    }));
+};
+
 export const getTodaysAttendanceForUser = async (userId: string): Promise<AttendanceRecord | null> => {
     const today = new Date().toISOString().split('T')[0];
     const allAttendance = storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || [];
@@ -380,12 +392,12 @@ export const getAttendanceForUser = async (userId: string): Promise<AttendanceRe
     return delay((storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.userId === userId));
 };
 
-const CAMPUS_LAT = 18.4550;
-const CAMPUS_LON = 79.5217;
-const CAMPUS_RADIUS_KM = 0.5; // 500 meters
+export const CAMPUS_LAT = 18.4550;
+export const CAMPUS_LON = 79.5217;
+export const CAMPUS_RADIUS_KM = 0.5; // 500 meters
 
 // Haversine distance function
-const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+export const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371; // Radius of the earth in km
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -409,10 +421,11 @@ export const markAttendance = async (userId: string, coordinates: { latitude: nu
 
     let locationStatus: 'On-Campus' | 'Off-Campus' = 'Off-Campus';
     let locationString: string | undefined;
+    let distanceInKm: number | undefined;
 
     if (coordinates) {
-        const distance = getDistanceInKm(coordinates.latitude, coordinates.longitude, CAMPUS_LAT, CAMPUS_LON);
-        if (distance <= CAMPUS_RADIUS_KM) {
+        distanceInKm = getDistanceInKm(coordinates.latitude, coordinates.longitude, CAMPUS_LAT, CAMPUS_LON);
+        if (distanceInKm <= CAMPUS_RADIUS_KM) {
             locationStatus = 'On-Campus';
         }
         locationString = `${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`;
@@ -429,7 +442,8 @@ export const markAttendance = async (userId: string, coordinates: { latitude: nu
         timestamp: today.toTimeString().split(' ')[0], 
         location: { 
             status: locationStatus, 
-            coordinates: locationString 
+            coordinates: locationString,
+            distance_km: distanceInKm
         }
     };
     allAttendance.unshift(newRecord);
@@ -641,7 +655,11 @@ const getAiClient = () => {
 const runGemini = async (prompt: string, responseSchema?: any): Promise<string> => {
     try {
         const client = getAiClient();
-        const config = responseSchema ? { responseMimeType: "application/json", responseSchema } : {};
+        const config: { responseMimeType?: string, responseSchema?: any } = {};
+        if (responseSchema) {
+            config.responseMimeType = "application/json";
+            config.responseSchema = responseSchema;
+        }
         
         const response: GenerateContentResponse = await client.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -652,10 +670,40 @@ const runGemini = async (prompt: string, responseSchema?: any): Promise<string> 
         return response.text;
     } catch (error) {
         console.error("Error calling Gemini API:", error);
+        // FIX: Propagate errors instead of returning an error string.
         throw new Error("Could not generate content from AI. Please check API key and configuration.");
     }
 }
 
+// Helper to convert image URL (http or data:) to base64 string and mimeType
+async function imageToBase64(imageUrl: string): Promise<{ data: string, mimeType: string }> {
+    if (imageUrl.startsWith('data:')) {
+        const parts = imageUrl.split(',');
+        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+        const data = parts[1];
+        return { data, mimeType };
+    } else {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const mimeType = blob.type;
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = reject;
+            reader.onload = () => {
+                const dataUrl = reader.result as string;
+                const base64Data = dataUrl.split(',')[1];
+                resolve({ data: base64Data, mimeType });
+            };
+            reader.readAsDataURL(blob);
+        });
+    }
+}
+
+interface VerificationResult {
+    isMatch: boolean;
+    quality: 'GOOD' | 'POOR';
+    reason: string;
+}
 
 export const geminiService = {
   summarizeNotes: (notes: string) => runGemini(`Summarize the following notes into concise bullet points:\n\n${notes}`),
@@ -751,4 +799,58 @@ export const geminiService = {
   },
 
   explainConcept: (concept: string) => runGemini(`Explain the following concept in simple terms, as if explaining it to a high school student (ELI5 style):\n\n${concept}`),
+
+  verifyFace: async (referenceImageUrl: string, liveImageUrl: string): Promise<VerificationResult> => {
+    try {
+        const [referenceImage, liveImage] = await Promise.all([
+            imageToBase64(referenceImageUrl),
+            imageToBase64(liveImageUrl)
+        ]);
+
+        const referenceImagePart = {
+            inlineData: { mimeType: referenceImage.mimeType, data: referenceImage.data },
+        };
+        const liveImagePart = {
+             inlineData: { mimeType: liveImage.mimeType, data: liveImage.data },
+        };
+        const textPart = {
+            text: "You are a strict face verification AI. First, analyze the quality of the second image (the live photo). Is it a clear, well-lit, front-facing portrait suitable for facial recognition? Then, determine if the person in the second image is the same person as in the first image (the reference). If the quality is too poor to make a confident decision, you must reject the match. Respond with a JSON object. "
+        };
+
+        const schema = {
+            type: Type.OBJECT,
+            properties: {
+                isMatch: { type: Type.BOOLEAN, description: "Whether the faces in the two images belong to the same person." },
+                quality: { type: Type.STRING, enum: ["GOOD", "POOR"], description: "The quality of the live photo for recognition." },
+                reason: { type: Type.STRING, description: "If quality is 'POOR', a brief reason (e.g., 'Poor lighting', 'Face is angled', 'Blurry image'). If quality is 'GOOD' and it's a match, this should be 'OK'. If it's not a match, this should be 'Faces do not match'." }
+            },
+            required: ["isMatch", "quality", "reason"]
+        };
+        
+        const client = getAiClient();
+        const response: GenerateContentResponse = await client.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [referenceImagePart, liveImagePart, textPart] },
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+            }
+        });
+
+        const resultText = response.text;
+        console.log("Face verification JSON from Gemini:", resultText);
+        const result = JSON.parse(resultText) as VerificationResult;
+        
+        // Enforce a stricter rule: if the model judges quality as poor, we override the match to false.
+        if (result.quality === 'POOR') {
+            result.isMatch = false;
+        }
+
+        return result;
+    } catch (error) {
+        console.error("Error during face verification with Gemini:", error);
+        // Fail securely. If the API fails, don't allow attendance.
+        return { isMatch: false, quality: 'POOR', reason: 'An API or system error occurred during verification.' };
+    }
+  },
 };
