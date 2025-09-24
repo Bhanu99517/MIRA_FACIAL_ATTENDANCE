@@ -1,19 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Polyfill for browser environments that don't have `process.env` but may provide
-// secrets via a framed environment (common in web IDEs). This prevents the app
-// from crashing and allows the AI services to initialize correctly after deployment.
-try {
-  if (typeof process === 'undefined') {
-    (window as any).process = { env: {} };
-  }
-  const frameEnv = (window as any).frame?.env;
-  if (frameEnv && typeof frameEnv.API_KEY === 'string') {
-    (window as any).process.env.API_KEY = frameEnv.API_KEY;
-  }
-} catch (e) {
-  console.error("Failed to polyfill process.env:", e);
-}
+// This file initializes the Google GenAI client for the CogniCraft AI service.
 
 interface AiClientState {
   client: GoogleGenAI | null;
@@ -22,26 +9,25 @@ interface AiClientState {
 }
 
 const initializeClient = (): AiClientState => {
+  // Per the coding guidelines, the API_KEY environment variable is a hard requirement
+  // and is assumed to be pre-configured, valid, and accessible.
+  // We include a try-catch block for robustness in case of unexpected errors during initialization.
   try {
-    // This now safely reads from the polyfilled process.env object in the browser
-    const apiKey = (window as any).process?.env?.API_KEY;
-
-    if (!apiKey) {
-      throw new Error("AI Service API key is not configured. Please set the API_KEY in your deployment environment's secrets.");
-    }
-    const client = new GoogleGenAI({ apiKey });
+    // FIX: Initialize the GoogleGenAI client using the API_KEY from environment variables.
+    const client = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    console.log("CogniCraft AI client initialized successfully.");
     return {
       client,
       isInitialized: true,
       initializationError: null,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "An unknown error occurred during AI client initialization.";
-    console.error("Failed to initialize AI client:", message);
+    const errorMessage = `CogniCraft AI client failed to initialize. ${error instanceof Error ? error.message : 'An unknown error occurred'}. AI features will be unavailable.`;
+    console.error(errorMessage);
     return {
       client: null,
       isInitialized: false,
-      initializationError: message,
+      initializationError: errorMessage,
     };
   }
 };
