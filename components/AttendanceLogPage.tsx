@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Role, Branch, User, Page, AttendanceRecord, Application, PPTContent, QuizContent } from '../types';
+import type { User, AttendanceRecord } from '../types';
+// FIX: Import the 'Branch' enum to be used in the component.
+import { Branch } from '../types';
 import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, geminiService } from '../services';
 import { Icons } from '../constants';
 import { Modal } from '../components';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 // --- LOCAL ICONS ---
 const ArrowUpRightIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -23,30 +24,111 @@ const MapPinIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-const AttendanceTrendChart: React.FC<{ data: any[] }> = ({ data }) => {
-    const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-    const tickColor = theme === 'dark' ? '#94a3b8' : '#64748b';
+const CalendarView: React.FC<{ calendarData: Map<string, 'Present' | 'Absent'> }> = ({ calendarData }) => {
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+
+    useEffect(() => {
+        if (calendarData.size > 0) {
+            const latestDate = Array.from(calendarData.keys()).sort().pop();
+            if (latestDate) {
+                const [year, month, day] = latestDate.split('-').map(Number);
+                setCurrentMonth(new Date(year, month - 1, day));
+            }
+        }
+    }, [calendarData]);
+
+    const monthlyStats = useMemo(() => {
+        const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        let p = 0, a = 0, wd = 0;
+        for (let d = new Date(startOfMonth); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split('T')[0];
+            const status = calendarData.get(dateStr);
+            if (status === 'Present') { p++; wd++; } 
+            else if (status === 'Absent') { a++; wd++; }
+        }
+        return { P: p, A: a, WD: wd };
+    }, [currentMonth, calendarData]);
+
+    const renderDays = () => {
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const month = currentMonth.getMonth();
+        const year = currentMonth.getFullYear();
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const days = [];
+        const dayHeaders = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        dayHeaders.forEach((day, i) => days.push(<div key={`head-${i}`} className="h-10 w-10 flex items-center justify-center text-xs font-bold text-slate-400">{day}</div>))
+        
+        for (let i = 0; i < firstDay; i++) {
+            days.push(<div key={`empty-${i}`} className="h-10 w-10"></div>);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month, day);
+            const dateStr = date.toISOString().split('T')[0];
+            const status = calendarData.get(dateStr);
+            const isToday = dateStr === todayStr;
+            const isFuture = date > today && !isToday;
+
+            let dayClasses = 'h-10 w-10 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors';
+            
+            if (isToday) {
+                dayClasses += ' ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 ring-primary-500';
+            }
+
+            if (isFuture) {
+                dayClasses += ' text-slate-400 dark:text-slate-600';
+            } else if (status === 'Present') {
+                dayClasses += ' bg-green-200 dark:bg-green-800/50 text-green-800 dark:text-green-200';
+            } else if (status === 'Absent') {
+                dayClasses += ' bg-red-200 dark:bg-red-800/50 text-red-800 dark:text-red-200';
+            } else {
+                dayClasses += ' text-slate-500 dark:text-slate-400';
+            }
+            
+            days.push(
+                <div key={day} className={dayClasses}>
+                    {day}
+                </div>
+            );
+        }
+        return days;
+    };
+    
+    const changeMonth = (offset: number) => {
+        setCurrentMonth(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(prev.getMonth() + offset);
+            return newDate;
+        });
+    };
 
     return (
-        <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: tickColor }} tickLine={{ stroke: tickColor }} axisLine={{ stroke: tickColor }} />
-                <YAxis hide={true} domain={[0, 'dataMax']} />
-                <Tooltip
-                    cursor={{ fill: 'rgba(100, 116, 139, 0.1)' }}
-                    contentStyle={{ background: theme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255,255,255,0.9)', border: '1px solid #334155', borderRadius: '8px' }}
-                    labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#f1f5f9' : '#0f172a' }}
-                    formatter={(value, name, props) => [props.payload.status, 'Status']}
-                />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {data.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.status === 'Present' ? '#10B981' : entry.status === 'Absent' ? '#EF4444' : '#64748b'} />
-                    ))}
-                </Bar>
-            </BarChart>
-        </ResponsiveContainer>
+         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
+            <div className="flex justify-between items-center mb-4">
+                <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">&larr;</button>
+                <h4 className="font-bold text-lg text-slate-800 dark:text-slate-100">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</h4>
+                <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">&rarr;</button>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center">
+                {renderDays()}
+            </div>
+            <div className="mt-6 flex justify-around text-center border-t dark:border-slate-700 pt-4">
+                <div><p className="font-bold text-xl text-green-600">{monthlyStats.P}</p><p className="text-xs text-slate-500">Present</p></div>
+                <div><p className="font-bold text-xl text-red-600">{monthlyStats.A}</p><p className="text-xs text-slate-500">Absent</p></div>
+                <div><p className="font-bold text-xl text-slate-700 dark:text-slate-200">{monthlyStats.WD}</p><p className="text-xs text-slate-500">Working Days</p></div>
+            </div>
+             <div className="mt-4 flex justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-green-200 dark:bg-green-800/50"></div> Present</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-red-200 dark:bg-red-800/50"></div> Absent</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full ring-2 ring-primary-500"></div> Today</div>
+            </div>
+        </div>
     );
 };
+
 
 // Helper function for basic image preprocessing (contrast)
 const adjustContrast = (ctx: CanvasRenderingContext2D, contrast: number): void => {
@@ -306,40 +388,15 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
     
     // --- Result View Components & Data ---
 
-    const { overallPercentage, trend, presentDays, workingDays, calendarData, monthlyStats, last30DaysTrend } = useMemo(() => {
-        const today = new Date();
-        const last30DaysData = [];
-        const attendanceMapForTrend = new Map(historicalData.map(r => [r.date, r.status]));
-
-        for (let i = 29; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            const dateString = date.toISOString().split('T')[0];
-            const status = attendanceMapForTrend.get(dateString);
-
-            last30DaysData.push({
-                date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                status: status || 'No Record',
-                value: status ? 1 : 0,
-            });
-        }
-        
+    const { overallPercentage, trend, presentDays, workingDays, calendarData } = useMemo(() => {
         const total = historicalData.length;
         if (total === 0) {
-            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
             return {
                 overallPercentage: 0,
                 trend: 0,
                 presentDays: 0,
                 workingDays: 0,
                 calendarData: new Map(),
-                monthlyStats: {
-                    P: 0,
-                    A: 0,
-                    LD: endOfMonth.getDate() - today.getDate(),
-                    WD: 0,
-                },
-                last30DaysTrend: last30DaysData,
             };
         }
 
@@ -353,24 +410,6 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         const trendValue = last7DaysPresent - prev7DaysPresent;
         
         const calData = new Map(historicalData.map(r => [r.date, r.status]));
-        
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        
-        let p = 0, a = 0;
-        for (let d = new Date(startOfMonth); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
-            const dateStr = d.toISOString().split('T')[0];
-            const status = calData.get(dateStr);
-            if(status === 'Present') p++;
-            else if (status === 'Absent') a++;
-        }
-        
-        const stats = {
-            P: p,
-            A: a,
-            LD: endOfMonth.getDate() - today.getDate(),
-            WD: p + a
-        };
 
         return { 
             overallPercentage: percentage, 
@@ -378,64 +417,9 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
             presentDays: present, 
             workingDays: total, 
             calendarData: calData,
-            monthlyStats: stats,
-            last30DaysTrend: last30DaysData,
         };
     }, [historicalData]);
     
-    const CalendarView = () => {
-        const [currentMonth, setCurrentMonth] = useState(new Date());
-
-        const renderDays = () => {
-            const month = currentMonth.getMonth();
-            const year = currentMonth.getFullYear();
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const days = [];
-            const dayHeaders = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-            dayHeaders.forEach(day => days.push(<div key={`head-${day}`} className="h-8 w-8 flex items-center justify-center text-xs font-bold text-slate-400">{day}</div>))
-            for (let i = 0; i < firstDay; i++) {
-                days.push(<div key={`empty-${i}`} className="h-8 w-8"></div>);
-            }
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateStr = new Date(year, month, day).toISOString().split('T')[0];
-                const isPresent = calendarData.get(dateStr) === 'Present';
-                days.push(
-                    <div key={day} className={`h-8 w-8 flex items-center justify-center rounded-full text-sm font-semibold ${isPresent ? 'bg-primary-500 text-white' : 'text-slate-700 dark:text-slate-300'}`}>
-                        {day}
-                    </div>
-                );
-            }
-            return days;
-        };
-        
-        const changeMonth = (offset: number) => {
-            setCurrentMonth(prev => {
-                const newDate = new Date(prev);
-                newDate.setMonth(prev.getMonth() + offset);
-                return newDate;
-            });
-        };
-
-        return (
-             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-                <div className="flex justify-between items-center mb-4">
-                    <button onClick={() => changeMonth(-1)}>&larr;</button>
-                    <h4 className="font-bold">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</h4>
-                    <button onClick={() => changeMonth(1)}>&rarr;</button>
-                </div>
-                <div className="grid grid-cols-7 gap-1 text-center">
-                    {renderDays()}
-                </div>
-                 <div className="mt-4 flex justify-around text-center text-xs border-t dark:border-slate-700 pt-3">
-                    <div><p className="font-bold text-lg">{monthlyStats.P || 0}</p><p className="text-slate-500">Present</p></div>
-                    <div><p className="font-bold text-lg">{monthlyStats.A || 0}</p><p className="text-slate-500">Absent</p></div>
-                    <div><p className="font-bold text-lg">{monthlyStats.LD || 0}</p><p className="text-slate-500">Leftover</p></div>
-                    <div><p className="font-bold text-lg">{monthlyStats.WD || 0}</p><p className="text-slate-500">Working</p></div>
-                </div>
-            </div>
-        );
-    };
 
     if (step === 'result') {
         return (
@@ -481,15 +465,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                                 <p className="text-right text-sm font-semibold">{presentDays} / {workingDays} days</p>
                             </div>
                         </div>
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-                            <h4 className="font-bold text-slate-900 dark:text-white mb-4">Last 30-Day Attendance</h4>
-                            {historicalData.length > 0 ? (
-                                <AttendanceTrendChart data={last30DaysTrend} />
-                            ) : (
-                                <p className="text-center text-slate-500 py-10">Not enough data to display trend.</p>
-                            )}
-                        </div>
-                        <CalendarView />
+                        <CalendarView calendarData={calendarData} />
                     </div>
                     <div className="space-y-6">
                          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
