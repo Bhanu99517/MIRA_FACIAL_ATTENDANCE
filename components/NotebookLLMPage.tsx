@@ -131,20 +131,50 @@ const NotebookLLMPage: React.FC = () => {
 
     const handleGenerate = async () => {
         if (!currentTool || !inputText) return;
-        setLoading(true);
-        setOutput(null);
+
         setError('');
+        setOutput(null);
+        
+        const { inputType } = currentTool;
+        const trimmedInput = inputText.trim();
+
+        if (inputType === 'topic' || inputType === 'concept') {
+            if (trimmedInput.length < 3) {
+                setError(`Please enter a ${inputType} of at least 3 characters.`);
+                return;
+            }
+            if (trimmedInput.length > 100) {
+                setError(`The ${inputType} is too long. Please keep it under 100 characters.`);
+                return;
+            }
+            if (trimmedInput.includes('\n')) {
+                setError(`The ${inputType} should be a single line without line breaks.`);
+                return;
+            }
+        } else if (inputType === 'notes') {
+            if (trimmedInput.length < 20) {
+                setError('Please provide more detailed notes (at least 20 characters) for better results.');
+                return;
+            }
+            if (trimmedInput.length > 5000) {
+                setError('The notes are too long. Please keep them under 5000 characters.');
+                return;
+            }
+        }
+        
+        setLoading(true);
+
         try {
             let result: LLMOutput;
             switch(currentTool.id) {
-                case 'summary': result = await cogniCraftService.summarizeNotes(inputText); break;
-                case 'questions': result = await cogniCraftService.generateQuestions(inputText); break;
-                case 'ppt': result = await cogniCraftService.generatePPT(inputText); break;
-                case 'story': result = await cogniCraftService.createStory(inputText); break;
-                case 'mindmap': result = await cogniCraftService.createMindMap(inputText); break;
-                case 'quiz': result = await cogniCraftService.generateQuiz(inputText); break;
-                case 'lessonPlan': result = await cogniCraftService.generateLessonPlan(inputText); break;
-                case 'explainConcept': result = await cogniCraftService.explainConcept(inputText); break;
+                case 'summary': result = await cogniCraftService.summarizeNotes(trimmedInput); break;
+                case 'questions': result = await cogniCraftService.generateQuestions(trimmedInput); break;
+                case 'ppt': result = await cogniCraftService.generatePPT(trimmedInput); break;
+                case 'story': result = await cogniCraftService.createStory(trimmedInput); break;
+                case 'mindmap': result = await cogniCraftService.createMindMap(trimmedInput); break;
+                case 'quiz': result = await cogniCraftService.generateQuiz(trimmedInput); break;
+                case 'lessonPlan': result = await cogniCraftService.generateLessonPlan(trimmedInput); break;
+                case 'explainConcept': result = await cogniCraftService.explainConcept(trimmedInput); break;
             }
             setOutput(result);
         } catch (e) {

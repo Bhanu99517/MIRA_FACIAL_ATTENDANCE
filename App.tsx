@@ -1,12 +1,13 @@
 
 
+
 import React, { useState, useEffect, createContext, useContext, useMemo, useCallback, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { Icons, navLinks } from './constants';
 import { Role, Branch, User, Page, AttendanceRecord, Application, PPTContent, QuizContent, LessonPlanContent, LLMOutput } from './types';
-import { login as apiLogin, getFaculty, getDashboardStats, getStudentByPin, markAttendance, getAttendanceForUser, sendEmail } from './services';
+import { login as apiLogin, getFaculty, getDashboardStats, getStudentByPin, markAttendance, getAttendanceForUser, sendEmail, cogniCraftService } from './services';
 import { SplashScreen, PermissionsPrompt, Modal, StatCard, ActionCard } from './components';
 import ManageUsersPage from './components/ManageUsersPage';
 import ReportsPage from './components/ReportsPage';
@@ -36,6 +37,7 @@ interface AppContextType {
   setSidebarOpen: (isOpen: boolean) => void;
   dashboardStats: { presentToday: number; absentToday: number; attendancePercentage: number; };
   refreshDashboardStats: () => Promise<void>;
+  isAiAvailable: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -54,6 +56,8 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [page, setPage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [dashboardStats, setDashboardStats] = useState({ presentToday: 0, absentToday: 0, attendancePercentage: 0 });
+
+  const isAiAvailable = cogniCraftService.getClientStatus().isInitialized;
 
   const refreshDashboardStats = useCallback(async () => {
     const stats = await getDashboardStats();
@@ -92,15 +96,15 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   const value = useMemo(() => ({
-    theme, toggleTheme, user, login, logout, facultyList, page, setPage, isSidebarOpen, setSidebarOpen, dashboardStats, refreshDashboardStats
-  }), [theme, user, facultyList, page, isSidebarOpen, dashboardStats, refreshDashboardStats]);
+    theme, toggleTheme, user, login, logout, facultyList, page, setPage, isSidebarOpen, setSidebarOpen, dashboardStats, refreshDashboardStats, isAiAvailable
+  }), [theme, user, facultyList, page, isSidebarOpen, dashboardStats, refreshDashboardStats, isAiAvailable]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 // --- LAYOUT COMPONENTS ---
 const Sidebar: React.FC = () => {
-    const { page, setPage, logout, isSidebarOpen, setSidebarOpen, user } = useAppContext();
+    const { page, setPage, logout, isSidebarOpen, setSidebarOpen, user, isAiAvailable } = useAppContext();
 
     return (
         <>
@@ -122,16 +126,26 @@ const Sidebar: React.FC = () => {
                         return (
                         <div key={section.title}>
                             <h3 className="px-3 py-2 text-sm font-semibold text-slate-500 uppercase tracking-wider">{section.title}</h3>
-                            {section.links.map((link) => (
+                            {section.links.map((link) => {
+                                const isAiLink = link.name === 'CogniCraft AI';
+                                const isDisabled = isAiLink && !isAiAvailable;
+
+                                return (
                                 <button
                                     key={link.name}
-                                    onClick={() => { setPage(link.name); setSidebarOpen(false); }}
-                                    className={`w-full flex items-center px-3 py-2.5 text-base font-medium rounded-lg transition-colors duration-200 ${page === link.name ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                                    onClick={() => { if (!isDisabled) { setPage(link.name); setSidebarOpen(false); } }}
+                                    disabled={isDisabled}
+                                    title={isDisabled ? 'CogniCraft AI is not configured by the administrator' : ''}
+                                    className={`w-full flex items-center px-3 py-2.5 text-base font-medium rounded-lg transition-colors duration-200 ${
+                                        page === link.name ? 'bg-primary-600 text-white shadow-lg' 
+                                        : isDisabled ? 'text-slate-500 cursor-not-allowed'
+                                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                    }`}
                                 >
                                     <link.icon className="h-5 w-5 mr-3" />
                                     <span>{link.name.replace(/([A-Z])/g, ' $1').trim()}</span>
                                 </button>
-                            ))}
+                            )})}
                         </div>
                         );
                     })}
@@ -249,7 +263,7 @@ const LoginPage: React.FC = () => {
 };
 
 const DashboardPage: React.FC = () => {
-  const { setPage, dashboardStats } = useAppContext();
+  const { setPage, dashboardStats, isAiAvailable } = useAppContext();
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8">
@@ -267,7 +281,15 @@ const DashboardPage: React.FC = () => {
             <ActionCard title="Mark Attendance" description="Use facial recognition to log attendance." icon={Icons.attendance} onClick={() => setPage('AttendanceLog')} />
             <ActionCard title="View Reports" description="Analyze attendance data and export." icon={Icons.reports} onClick={() => setPage('Reports')} />
             <ActionCard title="Manage Users" description="Add, edit, or remove system users." icon={Icons.users} onClick={() => setPage('ManageUsers')} />
-            <ActionCard title="CogniCraft AI" description="AI tools powered by our in-house model." icon={Icons.sparkles} onClick={() => setPage('CogniCraft AI')} />
+            {isAiAvailable ? (
+                <ActionCard title="CogniCraft AI" description="AI tools powered by our in-house model." icon={Icons.sparkles} onClick={() => setPage('CogniCraft AI')} />
+            ) : (
+                <div className="group bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg text-left w-full cursor-not-allowed opacity-60" title="CogniCraft AI is not configured by the administrator">
+                    <Icons.sparkles className="h-10 w-10 text-slate-400 mb-4" />
+                    <h3 className="text-lg font-semibold text-slate-500 dark:text-slate-400">CogniCraft AI</h3>
+                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Service unavailable.</p>
+                </div>
+            )}
         </div>
       </div>
      
@@ -308,8 +330,20 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
 
 
 const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = ({ refreshDashboardStats }) => {
-    const { page, user } = useAppContext();
+    const { page, user, setPage, isAiAvailable } = useAppContext();
+
+    useEffect(() => {
+        if (page === 'CogniCraft AI' && !isAiAvailable) {
+            setPage('Dashboard');
+        }
+    }, [page, isAiAvailable, setPage]);
+
+
     if (!user) return null;
+    
+    if (page === 'CogniCraft AI' && !isAiAvailable) {
+        return null;
+    }
 
     switch (page) {
         case 'Dashboard': return <DashboardPage />;
