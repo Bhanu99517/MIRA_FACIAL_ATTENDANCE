@@ -5,6 +5,7 @@
 
 
 
+
 import React, { useState, useEffect, createContext, useContext, useMemo, useCallback, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -383,13 +384,6 @@ const MainApp: React.FC = () => {
     useEffect(() => {
         if (!user) {
             setPermissionsState('granted'); // No user, no need for permissions check
-            return;
-        }
-
-        // Only check for users who need to mark attendance. Other roles can proceed.
-        const needsPermissions = user.role === Role.FACULTY || user.role === Role.STUDENT;
-        if (!needsPermissions) {
-            setPermissionsState('granted');
             return;
         }
 
