@@ -107,7 +107,7 @@ export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGrant
                         <p className="text-sm text-red-300/80">{error}</p>
                     </div>
                 )}
-                <ul className="space-y-4 text-left mb-8">
+                <ul className="space-y-4 text-left">
                     <li className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg">
                         <div className="p-2 bg-primary-500/20 rounded-full text-primary-400 mt-1">
                            <Icons.camera className="h-6 w-6" />
@@ -127,19 +127,27 @@ export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGrant
                         </div>
                     </li>
                 </ul>
-                {isDenied && (
-                    <div className="bg-amber-900/50 border border-amber-500/30 p-4 rounded-lg">
-                        <p className="text-amber-400 font-semibold mb-2">You have previously denied permissions.</p>
-                        <p className="text-sm text-amber-300/80">To use the attendance feature, please enable Camera and Location access for this site in your browser's settings, then refresh the page.</p>
-                    </div>
-                )}
-                
-                <button 
-                    onClick={requestPermissions} 
-                    className="w-full mt-6 py-3 bg-primary-600 hover:bg-primary-700 rounded-lg font-semibold transition-all shadow-lg hover:shadow-primary-600/50 transform hover:-translate-y-0.5"
-                >
-                    {isDenied ? 'Try Granting Permissions Again' : 'Grant Permissions'}
-                </button>
+                <div className="mt-8">
+                    {isDenied ? (
+                        <div className="bg-amber-900/50 border border-amber-500/30 p-4 rounded-lg">
+                            <p className="text-amber-400 font-semibold mb-2">You have previously denied permissions.</p>
+                            <p className="text-sm text-amber-300/80 mb-4">To use the attendance feature, please enable Camera and Location access for this site in your browser's settings, then refresh the page.</p>
+                            <button 
+                                onClick={requestPermissions} 
+                                className="w-full py-2.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 rounded-lg font-semibold transition-all"
+                            >
+                                Try Granting Permissions Again
+                            </button>
+                        </div>
+                    ) : (
+                        <button 
+                            onClick={requestPermissions} 
+                            className="w-full py-3 bg-primary-600 hover:bg-primary-700 rounded-lg font-semibold transition-all shadow-lg hover:shadow-primary-600/50 transform hover:-translate-y-0.5"
+                        >
+                            Grant Permissions
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
