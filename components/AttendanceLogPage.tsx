@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { User, AttendanceRecord } from '../types';
 // FIX: Import the 'Branch' enum to be used in the component.
-import { Branch } from '../types';
+import { Branch, Role } from '../types';
 // FIX: The AI service for face verification is exported as `cogniCraftService`, not `geminiService`.
 import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService } from '../services';
 import { Icons } from '../constants';
@@ -32,7 +32,9 @@ const CalendarView: React.FC<{ calendarData: Map<string, 'Present' | 'Absent'> }
         if (calendarData.size > 0) {
             const latestDate = Array.from(calendarData.keys()).sort().pop();
             if (latestDate) {
-                const [year, month, day] = latestDate.split('-').map(Number);
+                // FIX: Added type assertion to resolve 'split' does not exist on type 'unknown' error.
+                // The type inference was failing in the user's environment, despite the key being a string.
+                const [year, month, day] = (latestDate as string).split('-').map(Number);
                 setCurrentMonth(new Date(year, month - 1, day));
             }
         }
@@ -145,7 +147,7 @@ const adjustContrast = (ctx: CanvasRenderingContext2D, contrast: number): void =
 };
 
 
-const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }> = ({ refreshDashboardStats }) => {
+const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Promise<void> }> = ({ user, refreshDashboardStats }) => {
     type LocationStatus = 'On-Campus' | 'Off-Campus' | 'Fetching' | 'Error' | 'Idle';
     interface LocationData {
       status: LocationStatus;
@@ -153,15 +155,18 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
       coordinates: { latitude: number; longitude: number } | null;
       error: string;
     }
+    type AttendanceMode = 'student' | 'self';
 
+    const [mode, setMode] = useState<AttendanceMode>(user.role === Role.STUDENT ? 'self' : 'student');
     const [step, setStep] = useState<'capture' | 'verifying' | 'result'>('capture');
     const [pinParts, setPinParts] = useState({ prefix: '23210', branch: 'EC', roll: '' });
-    const [student, setStudent] = useState<User | null>(null);
+    const [userToVerify, setUserToVerify] = useState<User | null>(null);
     const [attendanceResult, setAttendanceResult] = useState<AttendanceRecord | null>(null);
     const [historicalData, setHistoricalData] = useState<AttendanceRecord[]>([]);
     const [cameraStatus, setCameraStatus] = useState<'idle' | 'aligning' | 'awaitingBlink' | 'blinkDetected' | 'verifying' | 'failed'>('idle');
     const [cameraError, setCameraError] = useState('');
-    const [alreadyMarked, setAlreadyMarked] = useState(false);
+    const [studentAlreadyMarked, setStudentAlreadyMarked] = useState(false);
+    const [selfAlreadyMarked, setSelfAlreadyMarked] = useState<boolean | null>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [locationData, setLocationData] = useState<LocationData>({ status: 'Idle', distance: null, coordinates: null, error: '' });
     const [showOffCampusModal, setShowOffCampusModal] = useState(false);
@@ -170,9 +175,24 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fullPin = useMemo(() => `${pinParts.prefix}-${pinParts.branch}-${pinParts.roll}`, [pinParts]);
+    const isNonStudent = user.role !== Role.STUDENT;
+
+    useEffect(() => {
+      if (user) {
+        const checkStatus = async () => {
+          const record = await getTodaysAttendanceForUser(user.id);
+          if (user.role === Role.STUDENT) {
+            setStudentAlreadyMarked(!!record);
+          } else {
+            setSelfAlreadyMarked(!!record);
+          }
+        };
+        checkStatus();
+      }
+    }, [user]);
 
     const handlePinChange = useCallback(async (newPin: string) => {
-        setAlreadyMarked(false);
+        setStudentAlreadyMarked(false);
         setCameraError('');
         setCapturedImage(null);
         setReferenceImageError('');
@@ -180,34 +200,34 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         setPinParts(p => ({...p, roll}));
 
         if (roll.length === 3) {
-            const user = await getStudentByPin(`${pinParts.prefix}-${pinParts.branch}-${roll}`);
-            if (user) {
-                const todaysRecord = await getTodaysAttendanceForUser(user.id);
+            const studentUser = await getStudentByPin(`${pinParts.prefix}-${pinParts.branch}-${roll}`);
+            if (studentUser) {
+                const todaysRecord = await getTodaysAttendanceForUser(studentUser.id);
                 if (todaysRecord) {
-                    setStudent(null);
-                    setAlreadyMarked(true);
+                    setUserToVerify(null);
+                    setStudentAlreadyMarked(true);
                 } else {
-                    if (!user.referenceImageUrl) {
-                        setStudent(user);
+                    if (!studentUser.referenceImageUrl) {
+                        setUserToVerify(studentUser);
                         setReferenceImageError('Reference photo is missing. Please ask an admin to upload one in the Manage Users section before marking attendance.');
                     } else {
-                        setStudent(user);
+                        setUserToVerify(studentUser);
                     }
                 }
             } else {
-                setStudent(null);
+                setUserToVerify(null);
             }
         } else {
-            setStudent(null);
+            setUserToVerify(null);
         }
     }, [pinParts.prefix, pinParts.branch]);
 
     const handleMarkAttendance = useCallback(async () => {
-        if(!student) return;
+        if(!userToVerify) return;
 
-        const result = await markAttendance(student.id, locationData.coordinates);
+        const result = await markAttendance(userToVerify.id, locationData.coordinates);
         await refreshDashboardStats(); // Refresh dashboard stats
-        const history = await getAttendanceForUser(student.id);
+        const history = await getAttendanceForUser(userToVerify.id);
         setAttendanceResult(result);
         setHistoricalData(history);
         
@@ -217,7 +237,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         
         setStep('result');
 
-        const notificationBody = `Dear Parent/Student,\n\nThis is to inform you that attendance for ${student.name} (PIN: ${student.pin}) has been marked as PRESENT.\n\nTimestamp: ${result.timestamp}\nLocation Status: ${result.location?.status} (${result.location?.coordinates})\n\nRegards,\nMira Attendance System`;
+        const notificationBody = `Dear Parent/Student,\n\nThis is to inform you that attendance for ${userToVerify.name} (PIN: ${userToVerify.pin}) has been marked as PRESENT.\n\nTimestamp: ${result.timestamp}\nLocation Status: ${result.location?.status} (${result.location?.coordinates})\n\nRegards,\nMira Attendance System`;
         
         const sendNotification = async (email: string, subject: string, body: string) => {
             try {
@@ -227,22 +247,22 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
             }
         };
         
-        if (student.parent_email && student.parent_email_verified) {
-            sendNotification(student.parent_email, `Attendance Marked for ${student.name}`, notificationBody);
+        if (userToVerify.parent_email && userToVerify.parent_email_verified) {
+            sendNotification(userToVerify.parent_email, `Attendance Marked for ${userToVerify.name}`, notificationBody);
         }
-        if (student.email && student.email_verified) {
-             sendNotification(student.email, `Your Attendance has been Marked`, notificationBody);
+        if (userToVerify.email && userToVerify.email_verified) {
+             sendNotification(userToVerify.email, `Your Attendance has been Marked`, notificationBody);
         }
 
-        if(student.phoneNumber) {
-            const whatsappMessage = `Attendance for ${student.name} (PIN: ${student.pin}) has been marked PRESENT at ${result.timestamp}. Location: ${result.location?.status || 'N/A'}${result.location?.coordinates ? ` (${result.location.coordinates})` : ''}.`;
-            const whatsappUrl = `https://wa.me/${student.phoneNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+        if(userToVerify.phoneNumber) {
+            const whatsappMessage = `Attendance for ${userToVerify.name} (PIN: ${userToVerify.pin}) has been marked PRESENT at ${result.timestamp}. Location: ${result.location?.status || 'N/A'}${result.location?.coordinates ? ` (${result.location.coordinates})` : ''}.`;
+            const whatsappUrl = `https://wa.me/${userToVerify.phoneNumber}?text=${encodeURIComponent(whatsappMessage)}`;
             window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
         }
-    }, [student, refreshDashboardStats, locationData.coordinates]);
+    }, [userToVerify, refreshDashboardStats, locationData.coordinates]);
 
     const handleCapture = useCallback(async () => {
-        if (videoRef.current && canvasRef.current && student?.referenceImageUrl) {
+        if (videoRef.current && canvasRef.current && userToVerify?.referenceImageUrl) {
             setCameraStatus('verifying');
             
             const video = videoRef.current;
@@ -251,13 +271,10 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
             canvas.height = video.videoHeight;
             const context = canvas.getContext('2d');
             if (context) {
-                // Flip the image horizontally as the video feed is mirrored
                 context.translate(canvas.width, 0);
                 context.scale(-1, 1);
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // Pre-process image: apply a slight contrast enhancement
-                adjustContrast(context, 20); // 20 is a moderate contrast value
+                adjustContrast(context, 20);
             }
             const dataUrl = canvas.toDataURL('image/jpeg');
             setCapturedImage(dataUrl);
@@ -267,22 +284,18 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
             }
     
             try {
-                // The service now returns a detailed object
-                const result = await cogniCraftService.verifyFace(student.referenceImageUrl, dataUrl);
+                const result = await cogniCraftService.verifyFace(userToVerify.referenceImageUrl, dataUrl);
                 
                 if (result.quality === 'POOR') {
                     setCameraStatus('failed');
-                    // Use the reason from the API to guide the user
                     setCameraError(`Verification failed: ${result.reason}. Please try again.`);
                 } else if (result.isMatch) {
-                    // Quality is GOOD and it's a match
                     if (locationData.status === 'Off-Campus') {
                         setShowOffCampusModal(true);
                     } else {
                         handleMarkAttendance();
                     }
                 } else {
-                    // Quality is GOOD but not a match
                     setCameraStatus('failed');
                     setCameraError("Face not recognized. The captured photo does not match the reference image.");
                 }
@@ -292,7 +305,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                 setCameraError("Could not verify face due to a system error. Please try again.");
             }
         }
-    }, [student, handleMarkAttendance, locationData.status]);
+    }, [userToVerify, handleMarkAttendance, locationData.status]);
 
     const startCamera = async () => {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -304,21 +317,40 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                     videoRef.current.srcObject = stream;
                     videoRef.current.onloadedmetadata = () => {
                         setCameraStatus('aligning');
-                        // Removed the simulated quality check. Proceed directly to liveness check.
                         setTimeout(() => {
                             setCameraStatus('awaitingBlink');
-                        }, 1500); // Shortened the alignment time
+                        }, 1500);
                     }
                 }
             } catch (err) {
-                setCameraError('Camera access denied. Please enable camera permissions in your browser settings.');
+                let message = 'Could not access camera.';
+                if (err instanceof DOMException) {
+                    switch(err.name) {
+                        case 'NotAllowedError':
+                            message = 'Camera access denied. Please enable camera permissions in your browser settings.';
+                            break;
+                        case 'NotFoundError':
+                            message = 'No camera found on this device.';
+                            break;
+                        case 'NotReadableError':
+                            message = 'Could not start video source. The camera might be in use by another application or there might be a hardware issue.';
+                            break;
+                        case 'OverconstrainedError':
+                            message = 'The camera does not meet the requested constraints (e.g., resolution).';
+                            break;
+                        default:
+                            message = `An unexpected camera error occurred: ${err.name}`;
+                    }
+                }
+                console.error("Error accessing camera:", err);
+                setCameraError(message);
                 setCameraStatus('failed');
             }
         }
     };
     
     const handleStartVerification = () => {
-        if (!student) return;
+        if (!userToVerify) return;
         setCameraError('');
         setStep('verifying');
         setLocationData({ status: 'Fetching', distance: null, coordinates: null, error: '' });
@@ -362,7 +394,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         if (cameraStatus === 'awaitingBlink') {
             const blinkTimer = setTimeout(() => {
                 setCameraStatus('blinkDetected');
-            }, 2000); // Simulate 2s wait for a blink
+            }, 2000);
             return () => clearTimeout(blinkTimer);
         }
     }, [cameraStatus]);
@@ -375,19 +407,20 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
 
     const reset = () => {
         setStep('capture');
-        setStudent(null);
+        setUserToVerify(null);
         setPinParts({ prefix: '23210', branch: 'EC', roll: '' });
         setAttendanceResult(null);
         setHistoricalData([]);
         setCameraStatus('idle');
         setCameraError('');
-        setAlreadyMarked(false);
+        setStudentAlreadyMarked(false);
         setLocationData({ status: 'Idle', distance: null, coordinates: null, error: '' });
         setCapturedImage(null);
         setReferenceImageError('');
+        if(isNonStudent) {
+            setMode('student');
+        }
     };
-    
-    // --- Result View Components & Data ---
 
     const { overallPercentage, trend, presentDays, workingDays, calendarData } = useMemo(() => {
         const total = historicalData.length;
@@ -397,7 +430,8 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                 trend: 0,
                 presentDays: 0,
                 workingDays: 0,
-                calendarData: new Map(),
+                // FIX: Explicitly type the empty Map to prevent its keys from being inferred as 'unknown'.
+                calendarData: new Map<string, 'Present' | 'Absent'>(),
             };
         }
 
@@ -410,7 +444,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         const prev7DaysPresent = prev7Days.filter(r => r.status === 'Present').length;
         const trendValue = last7DaysPresent - prev7DaysPresent;
         
-        const calData = new Map(historicalData.map(r => [r.date, r.status]));
+        const calData = new Map<string, 'Present' | 'Absent'>(historicalData.map(r => [r.date, r.status]));
 
         return { 
             overallPercentage: percentage, 
@@ -421,13 +455,12 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         };
     }, [historicalData]);
     
-
     if (step === 'result') {
         return (
             <div className="p-4 sm:p-6 lg:p-8 space-y-6 animate-fade-in">
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg text-center">
                     <Icons.checkCircle className="h-16 w-16 text-green-500 mx-auto" />
-                    <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Attendance Marked for {student?.name}!</h2>
+                    <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Attendance Marked for {userToVerify?.name}!</h2>
                     <div className="mt-2 space-y-1 text-slate-600 dark:text-slate-400 text-sm">
                         <p>
                             Recorded at: <span className="font-semibold text-slate-700 dark:text-slate-200">{attendanceResult?.timestamp}</span>
@@ -470,33 +503,33 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                     </div>
                     <div className="space-y-6">
                          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-                            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Student Profile</h4>
+                            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Profile</h4>
                             <div className="flex items-center space-x-4">
                                 <div className="relative">
-                                     <img src={student?.imageUrl} alt={student?.name} className="h-16 w-16 rounded-full object-cover ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-slate-800" />
-                                     <img src={student?.referenceImageUrl} alt="Reference" className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full object-cover ring-2 ring-white dark:ring-slate-800" title="Reference Photo"/>
+                                     <img src={userToVerify?.imageUrl} alt={userToVerify?.name} className="h-16 w-16 rounded-full object-cover ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-slate-800" />
+                                     <img src={userToVerify?.referenceImageUrl} alt="Reference" className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full object-cover ring-2 ring-white dark:ring-slate-800" title="Reference Photo"/>
                                 </div>
                                 <div>
-                                    <p className="text-xl font-bold text-slate-900 dark:text-white">{student?.name}</p>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-mono">{student?.pin}</p>
+                                    <p className="text-xl font-bold text-slate-900 dark:text-white">{userToVerify?.name}</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-mono">{userToVerify?.pin}</p>
                                 </div>
                             </div>
                             <div className="border-t border-slate-200 dark:border-slate-700 mt-4 pt-4 space-y-2 text-sm">
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-500 dark:text-slate-400 font-medium">Branch & Year</span>
-                                    <span className="font-semibold text-slate-700 dark:text-slate-200">{student?.branch} / {student?.year ? `I` : 'N/A'}</span>
+                                    <span className="font-semibold text-slate-700 dark:text-slate-200">{userToVerify?.branch} / {userToVerify?.year ? `I` : 'N/A'}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-500 dark:text-slate-400 font-medium">Phone</span>
-                                    <span className="font-semibold text-slate-700 dark:text-slate-200">{student?.phoneNumber || 'Not Provided'}</span>
+                                    <span className="font-semibold text-slate-700 dark:text-slate-200">{userToVerify?.phoneNumber || 'Not Provided'}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-slate-500 dark:text-slate-400 font-medium">Student Email</span>
-                                    <span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[150px]" title={student?.email ?? ''}>{student?.email || 'Not Provided'}</span>
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium">Email</span>
+                                    <span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[150px]" title={userToVerify?.email ?? ''}>{userToVerify?.email || 'Not Provided'}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-500 dark:text-slate-400 font-medium">Parent Email</span>
-                                    <span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[150px]" title={student?.parent_email ?? ''}>{student?.parent_email || 'Not Provided'}</span>
+                                    <span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[150px]" title={userToVerify?.parent_email ?? ''}>{userToVerify?.parent_email || 'Not Provided'}</span>
                                 </div>
                             </div>
                         </div>
@@ -519,10 +552,10 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
                             <h4 className="font-bold mb-2">Notification Status</h4>
                             <ul className="space-y-2 text-sm">
-                                <li className={`flex items-center gap-2 ${student?.email_verified ? 'text-green-600' : 'text-slate-500'}`}>
+                                <li className={`flex items-center gap-2 ${userToVerify?.email_verified ? 'text-green-600' : 'text-slate-500'}`}>
                                     <Icons.checkCircle className="w-4 h-4"/>Student Email Sent
                                 </li>
-                                <li className={`flex items-center gap-2 ${student?.parent_email_verified ? 'text-green-600' : 'text-slate-500'}`}>
+                                <li className={`flex items-center gap-2 ${userToVerify?.parent_email_verified ? 'text-green-600' : 'text-slate-500'}`}>
                                     <Icons.checkCircle className="w-4 h-4"/>Parent Email Sent
                                 </li>
                                 <li className="flex items-center gap-2 text-green-600">
@@ -557,78 +590,65 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
         setCameraError("Attendance marking cancelled due to off-campus location.");
     };
 
+    const studentMarkingUI = (
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl animate-fade-in-down">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Student Identification</h2>
+            <div className="mt-6">
+                <div className="group flex items-center w-full bg-slate-200/20 dark:bg-slate-900/30 border border-slate-400 dark:border-slate-600 rounded-lg p-3 text-xl font-mono tracking-wider focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500/50 transition-all">
+                    <select value={pinParts.prefix} onChange={e => {setUserToVerify(null); setStudentAlreadyMarked(false); setPinParts(p => ({ ...p, prefix: e.target.value, roll: '' }));}} className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold">
+                        {['25210', '24210', '23210', '22210', '21210'].map(prefix => (<option key={prefix} value={prefix} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{prefix}</option>))}
+                    </select>
+                    <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
+                    <select value={pinParts.branch} onChange={e => {setUserToVerify(null); setStudentAlreadyMarked(false); setPinParts(p => ({...p, branch: e.target.value, roll: ''}));}} className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold">
+                        {Object.values(Branch).map(b => <option key={b} value={b} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{b}</option>)}
+                    </select>
+                    <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
+                    <input value={pinParts.roll} onChange={e => handlePinChange(e.target.value)} placeholder="001" maxLength={3} className="w-24 bg-transparent outline-none text-slate-800 dark:text-white placeholder:text-slate-500" />
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">Select Prefix & Branch, then type Roll No. The student's name will appear below.</p>
+            </div>
+            <div className="mt-8 min-h-[3rem]">
+                {userToVerify && !referenceImageError && (<p className="text-center text-2xl font-bold text-primary-600 dark:text-primary-400 animate-fade-in">{userToVerify.name}</p>)}
+                 {referenceImageError && (<p className="text-center text-lg font-semibold text-red-500 animate-fade-in">{referenceImageError}</p>)}
+                {studentAlreadyMarked && (<p className="text-center text-lg font-semibold text-amber-500 animate-fade-in">Attendance already marked for this student today.</p>)}
+            </div>
+            <button onClick={handleStartVerification} disabled={!userToVerify || !!referenceImageError || step !== 'capture'} className="w-full mt-8 py-3 bg-slate-700 text-white/90 text-lg font-medium rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 disabled:cursor-not-allowed">
+                Mark Attendance
+            </button>
+        </div>
+    );
+
+    const selfMarkingUI = (
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl animate-fade-in-down text-center">
+            <img src={user.imageUrl} alt={user.name} className="w-24 h-24 rounded-full object-cover mx-auto ring-4 ring-offset-4 dark:ring-offset-slate-800 ring-primary-500" />
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mt-4">{user.name}</h2>
+            <p className="text-slate-500 font-mono">{user.pin}</p>
+            <div className="mt-8">
+                {selfAlreadyMarked === null ? <p className="animate-pulse">Checking status...</p>
+                : selfAlreadyMarked ? <p className="text-lg font-semibold text-green-600">Your attendance is marked for today.</p>
+                : <button onClick={() => { setUserToVerify(user); handleStartVerification(); }} disabled={step !== 'capture'} className="w-full py-3 bg-slate-700 text-white/90 text-lg font-medium rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 disabled:cursor-not-allowed">
+                        Mark My Attendance
+                    </button>
+                }
+            </div>
+        </div>
+    );
+
     return (
         <>
             <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center h-[calc(100vh-5rem)]">
                 <canvas ref={canvasRef} className="hidden" />
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl animate-fade-in-down">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Student Identification</h2>
-                    
-                    <div className="mt-6">
-                        <div className="group flex items-center w-full bg-slate-200/20 dark:bg-slate-900/30 border border-slate-400 dark:border-slate-600 rounded-lg p-3 text-xl font-mono tracking-wider focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500/50 transition-all">
-                            <select
-                                value={pinParts.prefix}
-                                onChange={e => {
-                                    setStudent(null);
-                                    setAlreadyMarked(false);
-                                    setPinParts(p => ({ ...p, prefix: e.target.value, roll: '' }));
-                                }}
-                                className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold"
-                            >
-                                {['25210', '24210', '23210', '22210', '21210'].map(prefix => (
-                                    <option key={prefix} value={prefix} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{prefix}</option>
-                                ))}
-                            </select>
-                            <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
-                            
-                            <select
-                                value={pinParts.branch}
-                                onChange={e => {
-                                    setStudent(null);
-                                    setAlreadyMarked(false);
-                                    setPinParts(p => ({...p, branch: e.target.value, roll: ''}));
-                                }}
-                                className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold"
-                            >
-                                {Object.values(Branch).map(b => <option key={b} value={b} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{b}</option>)}
-                            </select>
-                            
-                            <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
-                            
-                            <input
-                                value={pinParts.roll}
-                                onChange={e => handlePinChange(e.target.value)}
-                                placeholder="001"
-                                maxLength={3}
-                                className="w-24 bg-transparent outline-none text-slate-800 dark:text-white placeholder:text-slate-500"
-                            />
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">Select Prefix & Branch, then type Roll No. The student's name will appear below.</p>
+                <div>
+                  {isNonStudent && (
+                    <div className="mb-6 bg-slate-200 dark:bg-slate-800 p-1 rounded-lg flex gap-1">
+                      <button onClick={() => setMode('student')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${mode === 'student' ? 'bg-white dark:bg-slate-700 shadow' : 'text-slate-600 dark:text-slate-300'}`}>Mark for Student</button>
+                      <button onClick={() => setMode('self')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${mode === 'self' ? 'bg-white dark:bg-slate-700 shadow' : 'text-slate-600 dark:text-slate-300'}`}>Mark My Attendance</button>
                     </div>
-                    
-                    <div className="mt-8 min-h-[3rem]">
-                        {student && !referenceImageError && (
-                            <p className="text-center text-2xl font-bold text-primary-600 dark:text-primary-400 animate-fade-in">{student.name}</p>
-                        )}
-                         {referenceImageError && (
-                            <p className="text-center text-lg font-semibold text-red-500 animate-fade-in">{referenceImageError}</p>
-                        )}
-                        {alreadyMarked && (
-                            <p className="text-center text-lg font-semibold text-amber-500 animate-fade-in">Attendance already marked for today.</p>
-                        )}
-                    </div>
-                    
-                    <button 
-                        onClick={handleStartVerification}
-                        disabled={!student || !!referenceImageError || step !== 'capture'} 
-                        className="w-full mt-8 py-3 bg-slate-700 text-white/90 text-lg font-medium rounded-lg hover:bg-slate-600 transition-colors disabled:bg-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
-                    >
-                        Mark Attendance
-                    </button>
+                  )}
+                  {mode === 'student' && isNonStudent ? studentMarkingUI : selfMarkingUI}
                 </div>
                 
                 <div className="flex flex-col items-center justify-center text-center">
-                    {/* FIX: Refactored complex ternary to a simpler nested structure to avoid TypeScript control flow analysis issues. */}
                     {step === 'verifying' ? (
                         cameraStatus !== 'failed' ? (
                             capturedImage ? (
@@ -643,7 +663,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                                         <Icons.send className="w-8 h-8 text-slate-400 shrink-0" />
                                         <div className="flex flex-col items-center">
                                             <div className="relative w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700/50 overflow-hidden shadow-inner">
-                                                <img src={student?.referenceImageUrl || student?.imageUrl} alt="Student Reference" className="w-full h-full object-cover" />
+                                                <img src={userToVerify?.referenceImageUrl || userToVerify?.imageUrl} alt="Reference" className="w-full h-full object-cover" />
                                             </div>
                                             <p className="text-sm font-semibold mt-2">Reference Photo</p>
                                         </div>
@@ -652,7 +672,6 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                             ) : (
                                 <div className="relative w-80 h-80 rounded-full bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner">
                                     <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover transition-opacity duration-500 -scale-x-100 ${step === 'verifying' ? 'opacity-100' : 'opacity-0'}`} />
-                                    {/* FIX: Removed redundant 'cameraStatus === 'failed'' check from className ternary. This check is inside a block where 'cameraStatus' is already confirmed to not be 'failed', which was causing a TypeScript type error. */}
                                     <div className={`absolute inset-0 rounded-full border-8 transition-all duration-500 ${
                                         cameraStatus === 'aligning' ? 'border-amber-500' : 
                                         cameraStatus === 'awaitingBlink' ? 'border-blue-500' :
@@ -704,7 +723,7 @@ const AttendanceLogPage: React.FC<{ refreshDashboardStats: () => Promise<void> }
                                 </div>
                             </div>
                         )}
-                        {step === 'capture' && <p className="text-slate-500">Camera will activate after student selection.</p>}
+                        {step === 'capture' && <p className="text-slate-500">Camera will activate after user selection.</p>}
                     </div>
                 </div>
             </div>

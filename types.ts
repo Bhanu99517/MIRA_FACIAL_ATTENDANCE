@@ -11,10 +11,7 @@ export enum Role {
 export enum Branch {
   CS = 'CS',
   EC = 'EC',
-  CE = 'CE',
   EEE = 'EEE',
-  MECH = 'MECH',
-  IT = 'IT',
 }
 
 export interface User {
@@ -70,11 +67,12 @@ export interface Application {
   type: ApplicationType;
   status: ApplicationStatus;
   payload: {
-    reason?: string;
-    purpose?: string;
+    reason?: string; // For leave description
+    purpose?: string; // For bonafide/TC
     from_date?: string;
     to_date?: string;
     image_url?: string;
+    subject?: string; // For leave subject
   };
   created_at: string; // ISO string
 }

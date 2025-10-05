@@ -251,7 +251,7 @@ const UserFormModal: React.FC<{
                         <div>
                             <label className="block text-sm font-medium">Branch/Department</label>
                             <select name="branch" value={formData.branch} onChange={handleInputChange} className={inputClasses}>
-                                <option>EC</option><option>CE</option><option>EEE</option><option>Office</option><option>Library</option><option>ADMIN</option>
+                                <option>CS</option><option>EC</option><option>EEE</option><option>Office</option><option>Library</option><option>ADMIN</option>
                             </select>
                         </div>
                         <div>

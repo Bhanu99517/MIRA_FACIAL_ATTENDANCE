@@ -81,6 +81,23 @@ export const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M17.75 9.25l1-.5-1-.5" opacity="0.8"/>
     </svg>
   ),
+  cogniCraft: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="cogni-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="100%" stopColor="#ec4899" />
+            </linearGradient>
+        </defs>
+        <path d="M4 8L12 4L20 8L12 12L4 8Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
+        <path d="M4 16L12 20L20 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
+        <path d="M4 12V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
+        <path d="M20 12V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
+        <path d="M12 12V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
+        <path d="M4 12L12 16L20 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M8.5 10.5L12 12L15.5 10.5" stroke="url(#cogni-gradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
   feedback: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4.06 4.06 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -222,7 +239,7 @@ export const navLinks: { title: string; links: { name: Page, icon: React.FC<Reac
       { name: 'SBTETResults', icon: Icons.results },
       { name: 'Syllabus', icon: Icons.syllabus },
       { name: 'Timetables', icon: Icons.timetable },
-      { name: 'CogniCraft AI', icon: Icons.notebookLLM },
+      { name: 'CogniCraft AI', icon: Icons.cogniCraft },
     ],
   },
   {

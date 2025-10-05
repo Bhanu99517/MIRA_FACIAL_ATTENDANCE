@@ -14,6 +14,7 @@ export const SplashScreen: React.FC = () => (
 
 export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGranted }) => {
     const [permissionStatus, setPermissionStatus] = useState({ camera: 'prompt', geolocation: 'prompt' });
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const check = async () => {
@@ -34,20 +35,46 @@ export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGrant
     const isDenied = permissionStatus.camera === 'denied' || permissionStatus.geolocation === 'denied';
 
     const requestPermissions = async () => {
+        setError(null);
+        let stream: MediaStream | null = null;
         try {
-            await navigator.mediaDevices.getUserMedia({ video: true });
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
             await new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
             });
             onGranted();
-        } catch (error) {
-            console.error("Error requesting permissions:", error);
+        } catch (err: any) {
+            console.error("Error requesting permissions:", err);
+            
+            let message = 'An unknown error occurred while requesting permissions.';
+            if (err instanceof DOMException) {
+                switch (err.name) {
+                    case 'NotAllowedError':
+                        message = 'Permissions denied. You must grant camera and location access in your browser settings to continue.';
+                        break;
+                    case 'NotFoundError':
+                        message = 'No camera or location hardware was found on your device.';
+                        break;
+                    case 'NotReadableError':
+                        message = 'Could not access your camera. It might be in use by another application or there could be a hardware issue.';
+                        break;
+                    default:
+                        message = `An unexpected error occurred: ${err.name}.`;
+                }
+            } else if (err.code && (err.code === 1 || err.code === 2 || err.code === 3)) { // GeolocationPositionError
+                 message = `Geolocation error: ${err.message}.`;
+            }
+
+            setError(message);
+
             if(navigator.permissions && navigator.permissions.query) {
-                // FIX: TypeScript's PermissionName type might not include 'camera' in some environments.
-                // Asserting the type to bypass this compile-time error.
                 const camera = await navigator.permissions.query({ name: 'camera' as PermissionName });
                 const geolocation = await navigator.permissions.query({ name: 'geolocation' });
                 setPermissionStatus({ camera: camera.state, geolocation: geolocation.state });
+            }
+        } finally {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
             }
         }
     };
@@ -60,6 +87,12 @@ export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGrant
                 <p className="text-slate-400 mb-6">
                     Mira Attendance needs access to your camera and location to mark your attendance.
                 </p>
+                {error && (
+                    <div className="bg-red-900/50 border border-red-500/30 p-4 rounded-lg mb-6 text-left">
+                        <p className="text-red-400 font-semibold mb-1">Request Failed</p>
+                        <p className="text-sm text-red-300/80">{error}</p>
+                    </div>
+                )}
                 <ul className="space-y-4 text-left mb-8">
                     <li className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg">
                         <div className="p-2 bg-primary-500/20 rounded-full text-primary-400 mt-1">

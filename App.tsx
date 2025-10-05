@@ -1,6 +1,10 @@
 
 
 
+
+
+
+
 import React, { useState, useEffect, createContext, useContext, useMemo, useCallback, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -108,13 +112,13 @@ const Sidebar: React.FC = () => {
 
     return (
         <>
-            <aside className={`fixed top-0 left-0 z-40 w-64 h-screen bg-slate-900 text-white flex flex-col transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:animate-slide-in-from-left`}>
-                <div className="flex items-center justify-between p-5 border-b border-white/10">
+            <aside className={`fixed top-0 left-0 z-40 w-64 h-screen bg-white dark:bg-slate-900 flex flex-col transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:animate-slide-in-from-left`}>
+                <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-white/10">
                     <div className="flex items-center">
                         <Icons.logo className="h-8 w-8 text-primary-500 animate-logo-breath" />
-                        <span className="ml-3 text-xl font-bold tracking-tight">Mira Attendance</span>
+                        <span className="ml-3 text-xl font-bold tracking-tight text-slate-900 dark:text-white">Mira Attendance</span>
                     </div>
-                     <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white">
+                     <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
                         <Icons.close className="h-6 w-6"/>
                     </button>
                 </div>
@@ -125,7 +129,7 @@ const Sidebar: React.FC = () => {
                         }
                         return (
                         <div key={section.title}>
-                            <h3 className="px-3 py-2 text-sm font-semibold text-slate-500 uppercase tracking-wider">{section.title}</h3>
+                            <h3 className="px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{section.title}</h3>
                             {section.links.map((link) => {
                                 const isAiLink = link.name === 'CogniCraft AI';
                                 const isDisabled = isAiLink && !isAiAvailable;
@@ -138,8 +142,8 @@ const Sidebar: React.FC = () => {
                                     title={isDisabled ? 'CogniCraft AI is not configured by the administrator' : ''}
                                     className={`w-full flex items-center px-3 py-2.5 text-base font-medium rounded-lg transition-colors duration-200 ${
                                         page === link.name ? 'bg-primary-600 text-white shadow-lg' 
-                                        : isDisabled ? 'text-slate-500 cursor-not-allowed'
-                                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                        : isDisabled ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                                     }`}
                                 >
                                     <link.icon className="h-5 w-5 mr-3" />
@@ -150,8 +154,8 @@ const Sidebar: React.FC = () => {
                         );
                     })}
                 </nav>
-                <div className="p-4 border-t border-white/10">
-                    <button onClick={logout} className="w-full flex items-center px-4 py-2 text-base rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors duration-200">
+                <div className="p-4 border-t border-slate-200 dark:border-white/10">
+                    <button onClick={logout} className="w-full flex items-center px-4 py-2 text-base rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors duration-200">
                         <Icons.logout className="h-5 w-5 mr-3" />
                         <span>Logout</span>
                     </button>
@@ -263,7 +267,7 @@ const LoginPage: React.FC = () => {
 };
 
 const DashboardPage: React.FC = () => {
-  const { setPage, dashboardStats, isAiAvailable } = useAppContext();
+  const { setPage, dashboardStats, isAiAvailable, user } = useAppContext();
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8">
@@ -281,11 +285,14 @@ const DashboardPage: React.FC = () => {
             <ActionCard title="Mark Attendance" description="Use facial recognition to log attendance." icon={Icons.attendance} onClick={() => setPage('AttendanceLog')} />
             <ActionCard title="View Reports" description="Analyze attendance data and export." icon={Icons.reports} onClick={() => setPage('Reports')} />
             <ActionCard title="Manage Users" description="Add, edit, or remove system users." icon={Icons.users} onClick={() => setPage('ManageUsers')} />
-            {isAiAvailable ? (
-                <ActionCard title="CogniCraft AI" description="AI tools powered by our in-house model." icon={Icons.sparkles} onClick={() => setPage('CogniCraft AI')} />
+            
+            {user?.role === Role.STAFF ? (
+                <ActionCard title="Submit Feedback" description="Report issues or suggest improvements." icon={Icons.feedback} onClick={() => setPage('Feedback')} />
+            ) : isAiAvailable ? (
+                <ActionCard title="CogniCraft AI" description="AI tools for faculty and students." icon={Icons.cogniCraft} onClick={() => setPage('CogniCraft AI')} />
             ) : (
                 <div className="group bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg text-left w-full cursor-not-allowed opacity-60" title="CogniCraft AI is not configured by the administrator">
-                    <Icons.sparkles className="h-10 w-10 text-slate-400 mb-4" />
+                    <Icons.cogniCraft className="h-10 w-10 text-slate-400 mb-4" />
                     <h3 className="text-lg font-semibold text-slate-500 dark:text-slate-400">CogniCraft AI</h3>
                     <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Service unavailable.</p>
                 </div>
@@ -330,7 +337,7 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
 
 
 const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = ({ refreshDashboardStats }) => {
-    const { page, user, setPage, isAiAvailable } = useAppContext();
+    const { page, user, setPage, isAiAvailable, theme, toggleTheme } = useAppContext();
 
     useEffect(() => {
         if (page === 'CogniCraft AI' && !isAiAvailable) {
@@ -347,7 +354,7 @@ const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = (
 
     switch (page) {
         case 'Dashboard': return <DashboardPage />;
-        case 'AttendanceLog': return <AttendanceLogPage refreshDashboardStats={refreshDashboardStats} />;
+        case 'AttendanceLog': return <AttendanceLogPage user={user} refreshDashboardStats={refreshDashboardStats} />;
         case 'Reports': return <ReportsPage />;
         case 'ManageUsers': return <ManageUsersPage user={user} />;
         case 'Applications': return <ApplicationsPage user={user} />;
@@ -356,7 +363,7 @@ const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = (
         case 'Syllabus': return <SyllabusPage user={user} />;
         case 'Timetables': return <TimetablesPage user={user} />;
         case 'Feedback': return <FeedbackPage user={user} />;
-        case 'Settings': return <SettingsPage user={user} />;
+        case 'Settings': return <SettingsPage user={user} theme={theme} toggleTheme={toggleTheme} />;
         default: return <PlaceholderPage title={page} />;
     }
 };

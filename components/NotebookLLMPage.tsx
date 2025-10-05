@@ -208,7 +208,7 @@ const NotebookLLMPage: React.FC = () => {
         return (
             <div className="p-4 sm:p-6 lg:p-8 text-center flex flex-col items-center justify-center h-full">
                 <div className="inline-block p-4 bg-red-500/10 rounded-2xl shadow-lg">
-                    <Icons.sparkles className="h-12 w-12 text-red-400" />
+                    <Icons.cogniCraft className="h-12 w-12 text-red-400" />
                 </div>
                 <h1 className="text-4xl font-extrabold mt-4 text-slate-900 dark:text-white">CogniCraft AI Unavailable</h1>
                 <p className="text-lg text-slate-600 dark:text-slate-400 mt-2 max-w-2xl">{apiStatus.error}</p>
@@ -264,7 +264,7 @@ const NotebookLLMPage: React.FC = () => {
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="text-center mb-10">
                 <div className="inline-block p-4 bg-gradient-to-br from-primary-500 to-accent-500 rounded-2xl shadow-lg">
-                    <Icons.sparkles className="h-12 w-12 text-white" />
+                    <Icons.cogniCraft className="h-12 w-12 text-white" />
                 </div>
                 <h1 className="text-4xl font-extrabold mt-4 text-slate-900 dark:text-white">CogniCraft AI Studio</h1>
                 <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">Powered by CogniCraft, Mira's proprietary academic AI.</p>

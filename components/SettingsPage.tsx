@@ -23,7 +23,7 @@ const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabl
     </div>
 );
 
-const SettingsPage: React.FC<{ user: User }> = ({ user }) => {
+const SettingsPage: React.FC<{ user: User; theme: 'light' | 'dark'; toggleTheme: () => void; }> = ({ user, theme, toggleTheme }) => {
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [profile, setProfile] = useState({ name: user.name, email: user.email || '' });
     const [apiStatus, setApiStatus] = useState<{ isInitialized: boolean; error: string | null; }>({ isInitialized: false, error: null });
@@ -73,6 +73,26 @@ const SettingsPage: React.FC<{ user: User }> = ({ user }) => {
                         <div className="flex justify-between items-center">
                             <button onClick={handleProfileSave} className="font-semibold py-2 px-4 rounded-lg bg-primary-600 text-white hover:bg-primary-700">Save Changes</button>
                             <button className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:underline">Change Password</button>
+                        </div>
+                    </SettingsSection>
+                    
+                    <SettingsSection title="Appearance" description="Customize the look and feel of the application.">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Theme</span>
+                            <div className="flex items-center gap-1 rounded-lg bg-slate-200 dark:bg-slate-700 p-1">
+                                <button
+                                    onClick={() => { if (theme === 'dark') toggleTheme(); }}
+                                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 ${theme === 'light' ? 'bg-white dark:bg-slate-600 shadow' : 'text-slate-600 dark:text-slate-300'}`}
+                                >
+                                    <Icons.sun className="w-4 h-4" /> Light
+                                </button>
+                                <button
+                                    onClick={() => { if (theme === 'light') toggleTheme(); }}
+                                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 ${theme === 'dark' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 dark:text-slate-300'}`}
+                                >
+                                    <Icons.moon className="w-4 h-4" /> Dark
+                                </button>
+                            </div>
                         </div>
                     </SettingsSection>
                     

@@ -72,10 +72,7 @@ const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
                         <select value={branch} onChange={e => setBranch(e.target.value as Branch)} className="mt-1 p-2 border rounded-lg bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-primary-500">
                            <option value="CS">CS</option>
                            <option value="EC">EC</option>
-                           <option value="CE">CE</option>
                            <option value="EEE">EEE</option>
-                           <option value="MECH">MECH</option>
-                           <option value="IT">IT</option>
                         </select>
                     </div>
                      <div>
