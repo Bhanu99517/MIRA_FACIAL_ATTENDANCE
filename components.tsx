@@ -3,11 +3,25 @@ import { Icons } from './constants';
 import { Role } from './types';
 
 export const SplashScreen: React.FC = () => (
-  <div className="flex h-screen w-screen items-center justify-center bg-slate-900 overflow-hidden">
-    <div className="text-center">
-      <Icons.logo className="h-24 w-24 text-primary-500 mx-auto animate-fade-in-down" />
-      <h1 className="mt-4 text-4xl font-bold text-white tracking-tight animate-fade-in-down [animation-delay:200ms]">Mira Attendance</h1>
-      <p className="text-slate-400 animate-fade-in-down [animation-delay:400ms]">Next-Gen Attendance Management</p>
+  <div className="flex h-screen w-screen items-center justify-center bg-slate-900 overflow-hidden relative">
+    {/* Animated gradient background */}
+    <div className="absolute inset-0 bg-gradient-to-br from-primary-900 via-slate-900 to-accent-900 animate-gradient-bg opacity-50"></div>
+    
+    {/* Decorative blur shapes */}
+    <div className="absolute top-0 left-0 w-64 h-64 blur-3xl animate-fade-in [animation-delay:1s]">
+        <div className="w-full h-full bg-primary-500/10 rounded-full animate-pulse-faint"></div>
+    </div>
+    <div className="absolute bottom-0 right-0 w-72 h-72 blur-3xl animate-fade-in [animation-delay:1.2s]">
+        <div className="w-full h-full bg-accent-500/10 rounded-full animate-pulse-faint [animation-delay:0.5s]"></div>
+    </div>
+
+    <div className="text-center z-10">
+      {/* Logo with scale-in animation */}
+      <Icons.logo className="h-24 w-24 text-primary-500 mx-auto animate-scale-in" />
+      {/* Title with fade-in-up animation */}
+      <h1 className="mt-4 text-4xl font-bold text-white tracking-tight animate-fade-in-up [animation-delay:400ms]">Mira Attendance</h1>
+      {/* Subtitle with fade-in-up animation and longer delay */}
+      <p className="text-slate-400 animate-fade-in-up [animation-delay:600ms]">Next-Gen Attendance Management</p>
     </div>
   </div>
 );
