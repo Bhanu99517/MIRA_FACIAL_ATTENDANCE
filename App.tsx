@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import React, { useState, useEffect, createContext, useContext, useMemo, useCallback, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -393,7 +386,7 @@ const MainApp: React.FC = () => {
                 // Check if the Permission API is supported
                 if (!navigator.permissions || !navigator.permissions.query) {
                     console.warn("Permissions API not supported, will prompt on use.");
-                    setPermissionsState('granted'); // Fallback: can't check upfront
+                    setPermissionsState('prompt_or_denied'); // Fallback: assume not granted and show prompt
                     return;
                 }
                 // FIX: TypeScript's PermissionName type might not include 'camera' in some environments.
