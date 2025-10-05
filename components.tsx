@@ -127,16 +127,19 @@ export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGrant
                         </div>
                     </li>
                 </ul>
-                {isDenied ? (
+                {isDenied && (
                     <div className="bg-amber-900/50 border border-amber-500/30 p-4 rounded-lg">
                         <p className="text-amber-400 font-semibold mb-2">You have previously denied permissions.</p>
                         <p className="text-sm text-amber-300/80">To use the attendance feature, please enable Camera and Location access for this site in your browser's settings, then refresh the page.</p>
                     </div>
-                ) : (
-                    <button onClick={requestPermissions} className="w-full mt-6 py-3 bg-primary-600 hover:bg-primary-700 rounded-lg font-semibold transition-all shadow-lg hover:shadow-primary-600/50 transform hover:-translate-y-0.5">
-                        Grant Permissions
-                    </button>
                 )}
+                
+                <button 
+                    onClick={requestPermissions} 
+                    className="w-full mt-6 py-3 bg-primary-600 hover:bg-primary-700 rounded-lg font-semibold transition-all shadow-lg hover:shadow-primary-600/50 transform hover:-translate-y-0.5"
+                >
+                    {isDenied ? 'Try Granting Permissions Again' : 'Grant Permissions'}
+                </button>
             </div>
         </div>
     );
