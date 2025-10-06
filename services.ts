@@ -144,8 +144,8 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
             const pinParts = s.pin.split('-');
             const yearAndCollege = pinParts[0];
             const mockPhoneNumbers: { [key: string]: string } = {
-                '23210-EC-001': '919347856661',
-                '23210-EC-002': '919347856661',
+                '23210-EC-038': '919347856661',
+                '23210-EC-053': '919347856661',
             };
             return {
                 id: `stud-${pinParts[1].toLowerCase()}-${pinParts[2]}`,
@@ -315,7 +315,7 @@ const generateInitialData = () => {
 
         storage.setItem('MOCK_TIMETABLES', [
             { id: 'tt1', branch: Branch.EC, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'T. Manjula' },
-            { id: 'tt2', branch: Branch.CS, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'Admin' },
+            { id: 'tt2', branch: Branch.EEE, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'Admin' },
         ]);
         storage.setItem('MOCK_FEEDBACK', [
             { id: 'fb1', userId: 'fac_09', userName: 'TULLURI MANJOLA', userRole: Role.FACULTY, type: 'Suggestion', message: 'The attendance report page could use a date range filter.', status: 'New', submitted_at: now, is_anonymous: false},
