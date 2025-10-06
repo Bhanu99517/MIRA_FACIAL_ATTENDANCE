@@ -181,8 +181,17 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const locationWatchId = useRef<number | null>(null);
     const fullPin = useMemo(() => `${pinParts.prefix}-${pinParts.branch}-${pinParts.roll}`, [pinParts]);
     const isNonStudent = user.role !== Role.STUDENT;
+
+    useEffect(() => {
+        return () => {
+            if (locationWatchId.current !== null) {
+                navigator.geolocation.clearWatch(locationWatchId.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
       if (user) {
@@ -242,6 +251,11 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
             (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
         }
         
+        if (locationWatchId.current !== null) {
+            navigator.geolocation.clearWatch(locationWatchId.current);
+            locationWatchId.current = null;
+        }
+
         setStep('result');
 
         const notificationBody = `Dear Parent/Student,\n\nThis is to inform you that attendance for ${userToVerify.name} (PIN: ${userToVerify.pin}) has been marked as PRESENT.\n\nTimestamp: ${result.timestamp}\nLocation Status: ${result.location?.status} (${result.location?.coordinates})\n\nRegards,\nMira Attendance System`;
@@ -361,40 +375,36 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
         setCameraError('');
         setStep('verifying');
         setLocationData({ status: 'Fetching', distance: null, coordinates: null, error: '' });
-
-        const fetchLocationAndStartCamera = async () => {
-            try {
-                if (navigator.geolocation) {
-                    const coords = await new Promise<{ latitude: number, longitude: number }>((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => resolve({
-                                latitude: position.coords.latitude,
-                                longitude: position.coords.longitude
-                            }),
-                            (error) => reject(error),
-                            { timeout: 5000 }
-                        );
-                    });
+    
+        if (navigator.geolocation) {
+            locationWatchId.current = navigator.geolocation.watchPosition(
+                (position) => {
+                    const coords = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                    };
                     const distance = getDistanceInKm(coords.latitude, coords.longitude, CAMPUS_LAT, CAMPUS_LON);
                     const status: LocationStatus = distance <= CAMPUS_RADIUS_KM ? 'On-Campus' : 'Off-Campus';
                     setLocationData({ status, distance, coordinates: coords, error: '' });
-                } else {
-                     throw new Error("Geolocation is not supported.");
-                }
-            } catch (e) {
-                let errorMessage = 'Could not get location.';
-                 if (e instanceof GeolocationPositionError) {
-                    if (e.code === e.PERMISSION_DENIED) errorMessage = 'Location access denied.';
-                    else if (e.code === e.TIMEOUT) errorMessage = 'Location request timed out.';
-                 } else if (e instanceof Error) {
-                     errorMessage = e.message;
-                 }
-                setLocationData({ status: 'Error', distance: null, coordinates: null, error: errorMessage });
-            } finally {
-                startCamera();
-            }
-        };
-        fetchLocationAndStartCamera();
+                },
+                (error) => {
+                    let errorMessage = 'Could not get location.';
+                    if (error.code === error.PERMISSION_DENIED) errorMessage = 'Location access denied.';
+                    else if (error.code === error.TIMEOUT) errorMessage = 'Location request timed out.';
+                    setLocationData({ status: 'Error', distance: null, coordinates: null, error: errorMessage });
+                    if (locationWatchId.current !== null) {
+                        navigator.geolocation.clearWatch(locationWatchId.current);
+                        locationWatchId.current = null;
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        } else {
+            const errorMessage = "Geolocation is not supported by this browser.";
+            setLocationData({ status: 'Error', distance: null, coordinates: null, error: errorMessage });
+        }
+    
+        startCamera();
     };
 
     useEffect(() => {
@@ -424,6 +434,10 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
         setLocationData({ status: 'Idle', distance: null, coordinates: null, error: '' });
         setCapturedImage(null);
         setReferenceImageError('');
+        if (locationWatchId.current !== null) {
+            navigator.geolocation.clearWatch(locationWatchId.current);
+            locationWatchId.current = null;
+        }
         if(isNonStudent) {
             setMode('student');
         }
@@ -595,6 +609,10 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
         setShowOffCampusModal(false);
         setCameraStatus('failed');
         setCameraError("Attendance marking cancelled due to off-campus location.");
+        if (locationWatchId.current !== null) {
+            navigator.geolocation.clearWatch(locationWatchId.current);
+            locationWatchId.current = null;
+        }
     };
 
     const studentMarkingUI = (
@@ -702,12 +720,25 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                         {step === 'verifying' && cameraStatus !== 'failed' && (
                             <>
                                 <p className="text-lg font-semibold animate-fade-in">{verificationMessages[cameraStatus]}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                    {locationData.status === 'Fetching' && 'Getting location...'}
-                                    {locationData.status === 'On-Campus' && 'Location: On-Campus'}
-                                    {locationData.status === 'Off-Campus' && `Location: Off-Campus (${locationData.distance?.toFixed(2)} km away)`}
-                                    {locationData.status === 'Error' && `Location Error: ${locationData.error}`}
-                                </p>
+                                <div className="mt-2 text-sm text-center p-2 border border-slate-300 dark:border-slate-600 rounded-lg w-full max-w-xs bg-slate-100 dark:bg-slate-900/50">
+                                    {locationData.status === 'Fetching' && <span className="animate-pulse text-slate-500 dark:text-slate-400">Acquiring GPS signal...</span>}
+                                    {locationData.status === 'Error' && <span className="text-red-500 font-semibold">Error: {locationData.error}</span>}
+                                    {(locationData.status === 'On-Campus' || locationData.status === 'Off-Campus') && (
+                                        <div>
+                                            <div className={`font-bold text-base ${locationData.status === 'On-Campus' ? 'text-green-500' : 'text-amber-500'}`}>
+                                                Location: {locationData.status}
+                                            </div>
+                                            {locationData.distance !== null && <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                 (approx. {locationData.distance.toFixed(2)} km from campus)
+                                            </div>}
+                                            {locationData.coordinates && (
+                                                <div className="text-xs font-mono mt-1 text-slate-500 dark:text-slate-400 tracking-wider">
+                                                    {locationData.coordinates.latitude.toFixed(5)}, {locationData.coordinates.longitude.toFixed(5)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </>
                         )}
                         {step === 'verifying' && cameraStatus === 'failed' && (
