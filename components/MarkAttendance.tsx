@@ -92,7 +92,16 @@ export default function MarkAttendance() {
             return;
         }
     } catch (e) {
-        alert("Could not get location. Proceeding without it.");
+        let message = "Could not get location. Attendance cannot be marked without location access.";
+        if (e instanceof GeolocationPositionError) {
+            if (e.code === e.PERMISSION_DENIED) {
+                message = "Location access was denied. Please grant permission and try again.";
+            } else if (e.code === e.TIMEOUT) {
+                message = "Location request timed out. Please check your connection and try again.";
+            }
+        }
+        alert(message);
+        return; // Stop execution
     }
 
     // 2. Face match

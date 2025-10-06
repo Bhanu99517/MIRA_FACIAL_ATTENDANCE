@@ -311,10 +311,19 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                     setCameraStatus('failed');
                     setCameraError(`Verification failed: ${result.reason}. Please try again.`);
                 } else if (result.isMatch) {
-                    if (locationData.status === 'Off-Campus') {
+                    // Enforce location availability before proceeding
+                    if (locationData.status === 'On-Campus') {
+                        handleMarkAttendance();
+                    } else if (locationData.status === 'Off-Campus') {
                         setShowOffCampusModal(true);
                     } else {
-                        handleMarkAttendance();
+                        // This handles 'Error', 'Fetching', 'Idle', or any other unexpected state.
+                        setCameraStatus('failed');
+                        setCameraError(`Location is required to mark attendance. Status: ${locationData.status}. ${locationData.error || 'Please ensure location services are enabled.'}`);
+                        if (locationWatchId.current !== null) {
+                            navigator.geolocation.clearWatch(locationWatchId.current);
+                            locationWatchId.current = null;
+                        }
                     }
                 } else {
                     setCameraStatus('failed');
@@ -326,7 +335,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                 setCameraError("Could not verify face due to a system error. Please try again.");
             }
         }
-    }, [userToVerify, handleMarkAttendance, locationData.status]);
+    }, [userToVerify, handleMarkAttendance, locationData.status, locationData.error]);
 
     const startCamera = async () => {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
