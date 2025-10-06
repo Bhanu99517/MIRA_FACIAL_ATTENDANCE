@@ -55,7 +55,10 @@ const CalendarView: React.FC<{ calendarData: Map<string, 'Present' | 'Absent'> }
 
     const renderDays = () => {
         const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
+        today.setHours(0, 0, 0, 0);
+        
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        
         const month = currentMonth.getMonth();
         const year = currentMonth.getFullYear();
         const firstDay = new Date(year, month, 1).getDay();
@@ -70,10 +73,14 @@ const CalendarView: React.FC<{ calendarData: Map<string, 'Present' | 'Absent'> }
 
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(year, month, day);
-            const dateStr = date.toISOString().split('T')[0];
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${d}`;
+            
             const status = calendarData.get(dateStr);
             const isToday = dateStr === todayStr;
-            const isFuture = date > today && !isToday;
+            const isFuture = date > today;
 
             let dayClasses = 'h-10 w-10 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors';
             
