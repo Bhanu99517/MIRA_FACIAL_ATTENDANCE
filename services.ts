@@ -118,6 +118,19 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
     MOCK_USERS = storage.getItem<User[]>('MOCK_USERS')!;
 } else {
     MOCK_USERS = [
+        {
+            id: 'super_00',
+            pin: 'BHANU-00',
+            name: 'BHANU',
+            role: Role.SUPER_ADMIN,
+            branch: 'SYSTEM',
+            email: `bhanu@mira.edu`,
+            imageUrl: createAvatar('Bhanu'),
+            referenceImageUrl: createAvatar('Bhanu'),
+            password: '9347856661',
+            email_verified: true,
+            parent_email_verified: false,
+        },
         ...allStaffAndFaculty.map(p => {
             const pinPrefixes: Record<string, string> = {
                 [Role.PRINCIPAL]: 'PRI',
@@ -337,7 +350,8 @@ const delay = <T,>(data: T, ms = 300): Promise<T> => new Promise(res => setTimeo
 // --- EXPORTED API FUNCTIONS ---
 
 export const login = async (pin: string, pass: string): Promise<User | null> => {
-    const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.password === pass && (u.role === Role.PRINCIPAL || u.role === Role.FACULTY || u.role === Role.HOD || u.role === Role.STAFF));
+    const allowedLoginRoles = [Role.SUPER_ADMIN, Role.PRINCIPAL, Role.FACULTY, Role.HOD, Role.STAFF];
+    const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.password === pass && allowedLoginRoles.includes(u.role));
     return delay(user || null);
 };
 

@@ -76,7 +76,7 @@ const SBTETResultsPage: React.FC<{ user: User }> = ({ user }) => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [activeAccordion, setActiveAccordion] = useState<number | null>(null);
 
-    const isAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD;
+    const isAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD || user.role === Role.SUPER_ADMIN;
     
     const summary = useMemo(() => {
         if (!results || results.length === 0) return null;

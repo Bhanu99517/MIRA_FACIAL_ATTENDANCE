@@ -235,8 +235,9 @@ const StatusChecker: React.FC = () => {
 };
 
 const AdminView: React.FC<{ user: User }> = ({ user }) => {
+    const isPrincipalOrSuperAdmin = user.role === Role.PRINCIPAL || user.role === Role.SUPER_ADMIN;
     const [activeTab, setActiveTab] = useState<'manage' | 'new' | 'status'>(
-        user.role === Role.PRINCIPAL ? 'manage' : 'new'
+        isPrincipalOrSuperAdmin ? 'manage' : 'new'
     );
     const [applications, setApplications] = useState<Application[]>([]);
     const [loadingApps, setLoadingApps] = useState(true);
@@ -288,12 +289,12 @@ const AdminView: React.FC<{ user: User }> = ({ user }) => {
              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
                 <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
                     <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                         {user.role === Role.PRINCIPAL && (
+                         {isPrincipalOrSuperAdmin && (
                             <button onClick={() => setActiveTab('manage')} className={`${activeTab === 'manage' ? 'border-primary-500 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-200'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
                                 Manage Pending <span className="ml-1.5 rounded-full bg-primary-100 dark:bg-primary-900/50 px-2 py-0.5 text-xs text-primary-600 dark:text-primary-300">{pendingApplications.length}</span>
                             </button>
                         )}
-                        {user.role !== Role.PRINCIPAL && (
+                        {!isPrincipalOrSuperAdmin && (
                             <button onClick={() => setActiveTab('new')} className={`${activeTab === 'new' ? 'border-primary-500 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-200'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
                                 New Application
                             </button>
@@ -304,7 +305,7 @@ const AdminView: React.FC<{ user: User }> = ({ user }) => {
                     </nav>
                 </div>
                 <div>
-                    {activeTab === 'manage' && user.role === Role.PRINCIPAL && (
+                    {activeTab === 'manage' && isPrincipalOrSuperAdmin && (
                         <div className="animate-fade-in">
                             <h3 className="text-lg font-semibold mb-4">Pending Applications</h3>
                             {loadingApps && <p>Loading applications...</p>}
@@ -327,7 +328,7 @@ const AdminView: React.FC<{ user: User }> = ({ user }) => {
                             </ul>
                         </div>
                     )}
-                    {activeTab === 'new' && user.role !== Role.PRINCIPAL && <NewApplicationForm onApplicationSubmitted={handleApplicationSubmitted} />}
+                    {activeTab === 'new' && !isPrincipalOrSuperAdmin && <NewApplicationForm onApplicationSubmitted={handleApplicationSubmitted} />}
                     {activeTab === 'status' && <StatusChecker />}
                 </div>
             </div>

@@ -338,20 +338,22 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
     }, []);
 
     const { faculty, staff, students } = useMemo(() => {
-        const principal = allUsers.find(u => u.role === Role.PRINCIPAL);
+        // Filter out the SUPER_ADMIN user so they are not displayed in any table
+        const displayableUsers = allUsers.filter(u => u.role !== Role.SUPER_ADMIN);
+        const principal = displayableUsers.find(u => u.role === Role.PRINCIPAL);
         return {
-            faculty: [principal, ...allUsers.filter(u => u.role === Role.HOD || u.role === Role.FACULTY)].filter(Boolean) as User[],
-            staff: allUsers.filter(u => u.role === Role.STAFF),
-            students: allUsers.filter(u => u.role === Role.STUDENT)
+            faculty: [principal, ...displayableUsers.filter(u => u.role === Role.HOD || u.role === Role.FACULTY)].filter(Boolean) as User[],
+            staff: displayableUsers.filter(u => u.role === Role.STAFF),
+            students: displayableUsers.filter(u => u.role === Role.STUDENT)
         };
     }, [allUsers]);
 
     // Role-based access control logic
-    const canManageFacultyOrStaff = authenticatedUser?.role === Role.PRINCIPAL;
-    const canManageStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.FACULTY || authenticatedUser?.role === Role.HOD;
+    const canManageFacultyOrStaff = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.SUPER_ADMIN;
+    const canManageStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.FACULTY || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.SUPER_ADMIN;
 
     const handleAction = (action: 'add' | 'edit' | 'delete', userToManage: User | null, requiresAuth: boolean) => {
-        if (requiresAuth) {
+        if (requiresAuth && authenticatedUser?.role !== Role.SUPER_ADMIN) {
             const actionText = action === 'add' ? 'add a new user' : `${action} ${userToManage?.name}`;
             setModalState({ type: 'auth', user: userToManage, action: actionText, isDelete: action === 'delete' });
         } else {

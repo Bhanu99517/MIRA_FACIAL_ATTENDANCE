@@ -99,7 +99,7 @@ const SubjectCard: React.FC<{
     onEdit: (subject: SyllabusCoverage) => void 
 }> = ({ subject, user, isFacultyOrAdmin, onEdit }) => {
     const percentage = subject.totalTopics > 0 ? Math.round((subject.topicsCompleted / subject.totalTopics) * 100) : 0;
-    const canEdit = isFacultyOrAdmin && (user.id === subject.facultyId || (user.role === Role.HOD && user.branch === subject.branch));
+    const canEdit = isFacultyOrAdmin && (user.role === Role.SUPER_ADMIN || user.id === subject.facultyId || (user.role === Role.HOD && user.branch === subject.branch));
     
     const progressBarColor = percentage >= 80 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500';
 
@@ -148,11 +148,12 @@ const SyllabusPage: React.FC<{ user: User }> = ({ user }) => {
         fetchAllData();
     }, []);
 
-    const isFacultyOrAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD;
+    const isFacultyOrAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD || user.role === Role.SUPER_ADMIN;
 
     const filteredCoverage = useMemo(() => {
         if (!user) return [];
         switch (user.role) {
+            case Role.SUPER_ADMIN:
             case Role.PRINCIPAL:
                 return allCoverage;
             case Role.HOD:
@@ -184,7 +185,7 @@ const SyllabusPage: React.FC<{ user: User }> = ({ user }) => {
                     Syllabus Progress Tracker
                 </h1>
                 <p className="text-lg text-slate-400 mt-2">
-                    {user.role === Role.PRINCIPAL ? 'Viewing syllabus progress for all departments.' : 'Viewing syllabus progress for your assigned subjects.'}
+                    {user.role === Role.PRINCIPAL || user.role === Role.SUPER_ADMIN ? 'Viewing syllabus progress for all departments.' : 'Viewing syllabus progress for your assigned subjects.'}
                 </p>
             </div>
 

@@ -221,6 +221,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ title, description, icon
 
 export const RolePill: React.FC<{ role: Role }> = ({ role }) => {
     const roleColors: Record<Role, string> = {
+        [Role.SUPER_ADMIN]: 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600',
         [Role.PRINCIPAL]: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300 border border-red-200 dark:border-red-500/30',
         [Role.HOD]: 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30',
         [Role.FACULTY]: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30',
