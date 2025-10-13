@@ -88,7 +88,7 @@ export default function MarkAttendance() {
         coordinates = { latitude: position.coords.latitude, longitude: position.coords.longitude };
         const distance = getDistanceInKm(coordinates.latitude, coordinates.longitude, CAMPUS_LAT, CAMPUS_LON);
         const onCampus = distance <= CAMPUS_RADIUS_KM;
-        if (!onCampus && !confirm(`Student is approx. ${(distance * 1000).toFixed(0)}m off-campus. Proceed?`)) {
+        if (!onCampus && !confirm(`You are approximately ${(distance * 1000).toFixed(0)} meters off-campus. The allowed radius is ${CAMPUS_RADIUS_KM * 1000} meters. Do you want to proceed anyway?`)) {
             return;
         }
     } catch (e) {

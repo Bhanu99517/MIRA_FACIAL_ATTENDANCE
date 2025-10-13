@@ -11,10 +11,21 @@ interface AiClientState {
 const initializeClient = (): AiClientState => {
   // Per the coding guidelines, the API_KEY environment variable is a hard requirement
   // and is assumed to be pre-configured, valid, and accessible.
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    const errorMessage = "CogniCraft AI client failed to initialize. API key is missing. Please ensure the API_KEY environment variable is set for the application. AI features will be unavailable.";
+    console.error(errorMessage);
+    return {
+      client: null,
+      isInitialized: false,
+      initializationError: errorMessage,
+    };
+  }
+  
   // We include a try-catch block for robustness in case of unexpected errors during initialization.
   try {
-    // FIX: Initialize the GoogleGenAI client using the API_KEY from environment variables.
-    const client = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const client = new GoogleGenAI({ apiKey });
     console.log("CogniCraft AI client initialized successfully.");
     return {
       client,

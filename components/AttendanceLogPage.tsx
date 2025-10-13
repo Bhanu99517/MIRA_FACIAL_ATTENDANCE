@@ -160,6 +160,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
       status: LocationStatus;
       distance: number | null;
       coordinates: { latitude: number; longitude: number } | null;
+      accuracy: number | null;
       error: string;
     }
     type AttendanceMode = 'student' | 'self';
@@ -175,7 +176,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
     const [studentAlreadyMarked, setStudentAlreadyMarked] = useState(false);
     const [selfAlreadyMarked, setSelfAlreadyMarked] = useState<boolean | null>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
-    const [locationData, setLocationData] = useState<LocationData>({ status: 'Idle', distance: null, coordinates: null, error: '' });
+    const [locationData, setLocationData] = useState<LocationData>({ status: 'Idle', distance: null, coordinates: null, accuracy: null, error: '' });
     const [showOffCampusModal, setShowOffCampusModal] = useState(false);
     const [referenceImageError, setReferenceImageError] = useState('');
 
@@ -383,7 +384,22 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
         if (!userToVerify) return;
         setCameraError('');
         setStep('verifying');
-        setLocationData({ status: 'Fetching', distance: null, coordinates: null, error: '' });
+        setLocationData({ status: 'Fetching', distance: null, coordinates: null, accuracy: null, error: '' });
+    
+        const ACCURACY_THRESHOLD = 75; // meters
+        const TIMEOUT = 15000; // 15 seconds
+    
+        const locationTimeout = setTimeout(() => {
+            if (locationWatchId.current !== null) {
+                navigator.geolocation.clearWatch(locationWatchId.current);
+                locationWatchId.current = null;
+                setLocationData(prev => ({
+                    ...prev,
+                    status: 'Error',
+                    error: 'Could not get an accurate location in time. Please try again in an open area.',
+                }));
+            }
+        }, TIMEOUT);
     
         if (navigator.geolocation) {
             locationWatchId.current = navigator.geolocation.watchPosition(
@@ -392,15 +408,39 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
                     };
+                    const accuracy = position.coords.accuracy;
                     const distance = getDistanceInKm(coords.latitude, coords.longitude, CAMPUS_LAT, CAMPUS_LON);
-                    const status: LocationStatus = distance <= CAMPUS_RADIUS_KM ? 'On-Campus' : 'Off-Campus';
-                    setLocationData({ status, distance, coordinates: coords, error: '' });
+                    
+                    // Update UI with current accuracy
+                    setLocationData(prev => ({
+                        ...prev,
+                        accuracy,
+                        coordinates: coords,
+                        distance,
+                        status: 'Fetching' // Keep it fetching while we check accuracy
+                    }));
+    
+                    if (accuracy <= ACCURACY_THRESHOLD) {
+                        clearTimeout(locationTimeout); // Got a good reading, cancel timeout
+                        if (locationWatchId.current !== null) {
+                            navigator.geolocation.clearWatch(locationWatchId.current);
+                            locationWatchId.current = null;
+                        }
+                        const status: LocationStatus = distance <= CAMPUS_RADIUS_KM ? 'On-Campus' : 'Off-Campus';
+                        setLocationData({ status, distance, coordinates: coords, accuracy, error: '' });
+                    }
                 },
                 (error) => {
+                    clearTimeout(locationTimeout);
                     let errorMessage = 'Could not get location.';
-                    if (error.code === error.PERMISSION_DENIED) errorMessage = 'Location access denied.';
-                    else if (error.code === error.TIMEOUT) errorMessage = 'Location request timed out.';
-                    setLocationData({ status: 'Error', distance: null, coordinates: null, error: errorMessage });
+                    if (error.code === error.PERMISSION_DENIED) {
+                        errorMessage = 'Location access was denied. Please enable it in your browser settings.';
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                        errorMessage = 'Location information is unavailable. Check your GPS or network.';
+                    } else if (error.code === error.TIMEOUT) {
+                        errorMessage = 'Location request timed out. Please try again.';
+                    }
+                    setLocationData({ status: 'Error', distance: null, coordinates: null, accuracy: null, error: errorMessage });
                     if (locationWatchId.current !== null) {
                         navigator.geolocation.clearWatch(locationWatchId.current);
                         locationWatchId.current = null;
@@ -409,8 +449,9 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         } else {
+            clearTimeout(locationTimeout);
             const errorMessage = "Geolocation is not supported by this browser.";
-            setLocationData({ status: 'Error', distance: null, coordinates: null, error: errorMessage });
+            setLocationData({ status: 'Error', distance: null, coordinates: null, accuracy: null, error: errorMessage });
         }
     
         startCamera();
@@ -440,7 +481,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
         setCameraStatus('idle');
         setCameraError('');
         setStudentAlreadyMarked(false);
-        setLocationData({ status: 'Idle', distance: null, coordinates: null, error: '' });
+        setLocationData({ status: 'Idle', distance: null, coordinates: null, accuracy: null, error: '' });
         setCapturedImage(null);
         setReferenceImageError('');
         if (locationWatchId.current !== null) {
@@ -730,16 +771,22 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                             <>
                                 <p className="text-lg font-semibold animate-fade-in">{verificationMessages[cameraStatus]}</p>
                                 <div className="mt-2 text-sm text-center p-2 border border-slate-300 dark:border-slate-600 rounded-lg w-full max-w-xs bg-slate-100 dark:bg-slate-900/50">
-                                    {locationData.status === 'Fetching' && <span className="animate-pulse text-slate-500 dark:text-slate-400">Acquiring GPS signal...</span>}
+                                    {locationData.status === 'Fetching' && (
+                                        <div className="text-slate-500 dark:text-slate-400">
+                                            <p className="animate-pulse">Acquiring GPS signal...</p>
+                                            {locationData.accuracy && <p className="text-xs">Improving accuracy (±{locationData.accuracy.toFixed(0)}m)</p>}
+                                        </div>
+                                    )}
                                     {locationData.status === 'Error' && <span className="text-red-500 font-semibold">Error: {locationData.error}</span>}
                                     {(locationData.status === 'On-Campus' || locationData.status === 'Off-Campus') && (
                                         <div>
                                             <div className={`font-bold text-base ${locationData.status === 'On-Campus' ? 'text-green-500' : 'text-amber-500'}`}>
                                                 Location: {locationData.status}
                                             </div>
-                                            {locationData.distance !== null && <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                 (approx. {locationData.distance.toFixed(2)} km from campus)
-                                            </div>}
+                                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                 {locationData.distance !== null && `(approx. ${locationData.distance.toFixed(2)} km from campus)`}
+                                                 {locationData.accuracy !== null && ` | Accuracy: ±${locationData.accuracy.toFixed(0)}m`}
+                                            </div>
                                             {locationData.coordinates && (
                                                 <div className="text-xs font-mono mt-1 text-slate-500 dark:text-slate-400 tracking-wider">
                                                     {locationData.coordinates.latitude.toFixed(5)}, {locationData.coordinates.longitude.toFixed(5)}
@@ -784,12 +831,12 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                     <p className="text-lg text-slate-700 dark:text-slate-300">
                     You appear to be approximately{' '}
                     <span className="font-bold text-slate-900 dark:text-white">
-                        {locationData.distance?.toFixed(2)} km
+                        {(locationData.distance * 1000).toFixed(0)} meters
                     </span>{' '}
-                    away from campus.
+                    away from campus. The allowed radius is {CAMPUS_RADIUS_KM * 1000} meters.
                     </p>
                     <p className="mt-2 text-slate-500 dark:text-slate-400">
-                    Are you sure you want to proceed with marking attendance?
+                    Are you sure you want to proceed with marking attendance from an off-campus location?
                     </p>
                     <div className="mt-6 flex justify-center gap-4">
                     <button
