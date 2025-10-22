@@ -349,10 +349,40 @@ const delay = <T,>(data: T, ms = 300): Promise<T> => new Promise(res => setTimeo
 
 // --- EXPORTED API FUNCTIONS ---
 
-export const login = async (pin: string, pass: string): Promise<User | null> => {
+export const login = async (pin: string, pass: string): Promise<User | { otpRequired: true; user: User } | null> => {
     const allowedLoginRoles = [Role.SUPER_ADMIN, Role.PRINCIPAL, Role.FACULTY, Role.HOD, Role.STAFF];
     const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.password === pass && allowedLoginRoles.includes(u.role));
+
+    if (user && user.pin === 'BHANU-00' && user.role === Role.SUPER_ADMIN) {
+        return delay({ otpRequired: true, user: user });
+    }
+    
     return delay(user || null);
+};
+
+export const sendLoginOtp = async (user: User): Promise<{ success: boolean }> => {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    storage.setItem(`LOGIN_OTP_${user.id}`, otp);
+    
+    const email = 'bhanu99517@gmail.com'; // Hardcoded as per request
+    const subject = 'Your Mira Attendance Login OTP';
+    const body = `Hello ${user.name},\n\nYour One-Time Password (OTP) for logging into Mira Attendance is: ${otp}\n\nThis OTP is valid for 5 minutes.\n\nRegards,\nMira Attendance System`;
+
+    console.log(`--- SIMULATING OTP EMAIL ---`, { to: email, subject, body });
+    // In a real app, this would not be returned to the client.
+    await sendEmail(email, subject, body);
+    // OTP is not returned to client for security.
+    return { success: true };
+};
+
+export const verifyLoginOtp = async (userId: string, otp: string): Promise<User | null> => {
+    const storedOtp = storage.getItem<string>(`LOGIN_OTP_${userId}`);
+    if (storedOtp && storedOtp === otp) {
+        storage.setItem(`LOGIN_OTP_${userId}`, null); // Clear OTP after use
+        const user = MOCK_USERS.find(u => u.id === userId);
+        return delay(user || null);
+    }
+    return delay(null);
 };
 
 export const sendEmail = async (to: string, subject: string, body: string): Promise<{ success: boolean }> => {
