@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, addUser, updateUser, deleteUser } from '../services';
 import type { User } from '../types';
 import { Role } from '../types';
-import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon } from './Icons';
+import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon, KeyIcon } from './Icons';
 import { RolePill } from '../components';
 
 const createAvatar = (seed: string) => `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(seed)}`;
@@ -178,19 +178,32 @@ const generateIdCard = async (user: User) => {
 
 const UserFormModal: React.FC<{
     user?: User | null;
+    currentUser: User;
     onClose: () => void;
     onSave: (user: User) => void;
-}> = ({ user, onClose, onSave }) => {
+}> = ({ user, currentUser, onClose, onSave }) => {
     const isEditMode = !!user;
+
+    const allowedRoles = useMemo(() => {
+        if (currentUser.role === Role.SUPER_ADMIN) {
+            return Object.values(Role).filter(r => r !== Role.SUPER_ADMIN);
+        }
+        if (currentUser.role === Role.PRINCIPAL) {
+            return [Role.HOD, Role.FACULTY, Role.STAFF, Role.STUDENT];
+        }
+        return [];
+    }, [currentUser]);
+
     const [formData, setFormData] = useState<Partial<User>>({
         name: user?.name || '',
         pin: user?.pin || '',
         branch: user?.branch || 'EC',
-        role: user?.role || Role.STUDENT,
+        role: user?.role || allowedRoles[0] || Role.STUDENT,
         email: user?.email || '',
         parent_email: user?.parent_email || '',
         imageUrl: user?.imageUrl || '',
         referenceImageUrl: user?.referenceImageUrl || '',
+        college_code: user?.college_code || '',
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -220,14 +233,33 @@ const UserFormModal: React.FC<{
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        let determinedCollegeCode = formData.college_code;
+        let determinedYear: number | undefined;
+
+        if (formData.role === Role.STUDENT && formData.pin) {
+            const pinPrefix = formData.pin.split('-')[0];
+            if (pinPrefix && pinPrefix.length === 5) { // e.g., 23210
+                determinedCollegeCode = pinPrefix.substring(2); // e.g., 210
+            }
+            // For a new student, assign them to year 1. For existing, keep their year.
+            determinedYear = isEditMode ? user?.year : 1;
+        }
+
         const userToSave: User = {
             id: user?.id || `new_${Date.now()}`,
-            year: parseInt(formData.pin?.split('-')[0] || '0'),
-            college_code: formData.pin?.split('-')[1] || '',
             email_verified: user?.email_verified || false,
             parent_email_verified: user?.parent_email_verified || false,
             ...formData,
+            college_code: determinedCollegeCode,
+            year: determinedYear,
         } as User;
+
+        // Ensure year is not set for non-students
+        if (userToSave.role !== Role.STUDENT) {
+            delete userToSave.year;
+        }
+        
         onSave(userToSave);
     };
 
@@ -256,10 +288,25 @@ const UserFormModal: React.FC<{
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Role</label>
-                            <select name="role" value={formData.role} onChange={handleInputChange} className={inputClasses}>
-                                {Object.values(Role).map(role => <option key={role} value={role}>{role}</option>)}
+                            <select name="role" value={formData.role} onChange={handleInputChange} className={inputClasses} disabled={isEditMode}>
+                                {allowedRoles.map(role => <option key={role} value={role}>{role}</option>)}
                             </select>
                         </div>
+                         {currentUser.role === Role.SUPER_ADMIN && formData.role === Role.PRINCIPAL && (
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium">College Code</label>
+                                <input
+                                    type="text"
+                                    name="college_code"
+                                    required
+                                    value={formData.college_code}
+                                    onChange={handleInputChange}
+                                    className={inputClasses}
+                                    placeholder="e.g., 210, 211"
+                                />
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Assign a unique code. All data for this Principal's college will be tied to this code.</p>
+                            </div>
+                        )}
                         <div>
                             <label className="block text-sm font-medium">Email (Optional)</label>
                             <input type="email" name="email" value={formData.email} onChange={handleInputChange} className={inputClasses} />
@@ -305,65 +352,96 @@ const UserFormModal: React.FC<{
     );
 };
 
-const AuthModal: React.FC<{
-    action: string;
+const ChangePasswordModal: React.FC<{
+    user: User;
     onClose: () => void;
-    onSuccess: () => void;
-}> = ({ action, onClose, onSuccess }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center animate-fade-in-down" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold mb-2">Principal Authentication</h2>
-            <p className="text-slate-600 dark:text-slate-300 mb-6">Please verify your identity to {action}.</p>
-            <div className="p-4 border-2 border-dashed rounded-lg border-slate-300 dark:border-slate-600">
-                 <p className="font-semibold text-primary-500">Biometric / OTP</p>
-                 <p className="text-xs text-slate-500">This is a simulated authentication step.</p>
-            </div>
-            <div className="mt-6 flex justify-center gap-4">
-                <button type="button" onClick={onClose} className="font-semibold py-2 px-4 rounded-lg transition-colors bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">Cancel</button>
-                <button type="button" onClick={onSuccess} className="font-semibold py-2 px-4 rounded-lg transition-colors bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50">Authenticate</button>
+    onSave: (user: User, newPass: string) => void;
+}> = ({ user, onClose, onSave }) => {
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newPassword.length < 6) {
+            setError("Password must be at least 6 characters long.");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+        setError('');
+        onSave(user, newPassword);
+    };
+
+    const inputClasses = "mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500";
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 w-full max-w-md animate-fade-in-down" onClick={(e) => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Change Password</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Set a new password for <span className="font-semibold">{user.name}</span>.</p>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium">New Password</label>
+                        <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required className={inputClasses} />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium">Confirm New Password</label>
+                        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className={inputClasses} />
+                    </div>
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
+                    <div className="mt-6 flex justify-end space-x-3">
+                        <button type="button" onClick={onClose} className="font-semibold py-2 px-4 rounded-lg transition-colors bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">Cancel</button>
+                        <button type="submit" className="font-semibold py-2 px-4 rounded-lg transition-colors bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-primary-600/50">Update Password</button>
+                    </div>
+                </form>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 
 const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedUser }) => {
     const [allUsers, setAllUsers] = useState<User[]>([]);
-    const [modalState, setModalState] = useState<{ type: 'form' | 'auth' | null, user?: User | null, action?: string, isDelete?: boolean }>({ type: null });
+    const [modalState, setModalState] = useState<{ type: 'form' | 'password' | null, user?: User | null }>({ type: null });
     
-    const fetchUsers = () => getUsers().then(setAllUsers);
+    const fetchUsers = () => {
+        if (authenticatedUser) {
+            getUsers(authenticatedUser).then(setAllUsers);
+        }
+    };
 
     useEffect(() => {
         fetchUsers();
-    }, []);
+    }, [authenticatedUser]);
 
-    const { faculty, staff, students } = useMemo(() => {
-        // Filter out the SUPER_ADMIN user so they are not displayed in any table
+    const { principals, hodsAndFaculty, staff, students } = useMemo(() => {
+        // SUPER_ADMIN is never displayed in any list
         const displayableUsers = allUsers.filter(u => u.role !== Role.SUPER_ADMIN);
-        const principal = displayableUsers.find(u => u.role === Role.PRINCIPAL);
+        
         return {
-            faculty: [principal, ...displayableUsers.filter(u => u.role === Role.HOD || u.role === Role.FACULTY)].filter(Boolean) as User[],
+            principals: displayableUsers.filter(u => u.role === Role.PRINCIPAL),
+            hodsAndFaculty: displayableUsers.filter(u => u.role === Role.HOD || u.role === Role.FACULTY),
             staff: displayableUsers.filter(u => u.role === Role.STAFF),
             students: displayableUsers.filter(u => u.role === Role.STUDENT)
         };
     }, [allUsers]);
 
-    // Role-based access control logic
-    const canManageFacultyOrStaff = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.SUPER_ADMIN;
-    const canManageStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.FACULTY || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.SUPER_ADMIN;
+    // Hierarchical access control logic
+    const canManagePrincipals = authenticatedUser?.role === Role.SUPER_ADMIN;
+    const canManageAcademics = authenticatedUser?.role === Role.PRINCIPAL; // HODs & Faculty
+    const canManageSupportStaff = authenticatedUser?.role === Role.PRINCIPAL;
+    const canManageStudents = authenticatedUser?.role === Role.PRINCIPAL;
 
-    const handleAction = (action: 'add' | 'edit' | 'delete', userToManage: User | null, requiresAuth: boolean) => {
-        if (requiresAuth && authenticatedUser?.role !== Role.SUPER_ADMIN) {
-            const actionText = action === 'add' ? 'add a new user' : `${action} ${userToManage?.name}`;
-            setModalState({ type: 'auth', user: userToManage, action: actionText, isDelete: action === 'delete' });
+    const handleAction = (action: 'add' | 'edit' | 'delete', userToManage: User | null) => {
+        if (action === 'delete' && userToManage && authenticatedUser) {
+            if (window.confirm(`Are you sure you want to delete ${userToManage.name}? This action cannot be undone.`)) {
+                deleteUser(userToManage.id, authenticatedUser).then(fetchUsers);
+            }
         } else {
-             if (action === 'delete' && userToManage) {
-                 if(window.confirm(`Are you sure you want to delete ${userToManage.name}? This action cannot be undone.`)) {
-                    deleteUser(userToManage.id).then(fetchUsers);
-                 }
-             } else {
-                setModalState({ type: 'form', user: userToManage });
-             }
+            setModalState({ type: 'form', user: userToManage });
         }
     };
 
@@ -376,73 +454,108 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
         }
     };
     
-    const handleAuthSuccess = () => {
-        if (modalState.isDelete && modalState.user) {
-            deleteUser(modalState.user.id).then(() => {
-                setModalState({ type: null });
-                fetchUsers();
-            });
-        } else {
-             setModalState(prev => ({ ...prev, type: 'form' }));
-        }
-    };
-
     const handleSaveUser = async (userToSave: User) => {
+        if (!authenticatedUser) return;
         if (userToSave.id.startsWith('new_')) {
-            await addUser(userToSave);
+            await addUser(userToSave, authenticatedUser);
         } else {
-            await updateUser(userToSave.id, userToSave);
+            await updateUser(userToSave.id, userToSave, authenticatedUser);
         }
         setModalState({ type: null });
         fetchUsers();
+    };
+
+    const handleSavePassword = async (userToUpdate: User, newPass: string) => {
+        if (!authenticatedUser) return;
+        await updateUser(userToUpdate.id, { ...userToUpdate, password: newPass }, authenticatedUser);
+        setModalState({ type: null });
+        alert(`Password for ${userToUpdate.name} has been updated successfully.`);
     };
 
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="space-y-8">
-                <UserTable 
-                    title="Faculty & Leadership" 
-                    users={faculty} 
-                    canManage={canManageFacultyOrStaff}
-                    onAdd={() => handleAction('add', null, true)}
-                    onEdit={(user) => handleAction('edit', user, true)} 
-                    onDelete={(user) => handleAction('delete', user, true)} 
-                />
-                
-                 <UserTable 
-                    title="Administrative Staff" 
-                    users={staff} 
-                    canManage={canManageFacultyOrStaff}
-                    onAdd={() => handleAction('add', null, true)}
-                    onEdit={(user) => handleAction('edit', user, true)} 
-                    onDelete={(user) => handleAction('delete', user, true)} 
-                />
+                {authenticatedUser?.role === Role.SUPER_ADMIN && (
+                    <UserTable 
+                        title="College Admins (Principals)" 
+                        users={principals} 
+                        canManage={canManagePrincipals}
+                        onAdd={() => handleAction('add', null)}
+                        onEdit={(user) => handleAction('edit', user)} 
+                        onDelete={(user) => handleAction('delete', user)}
+                        onChangePassword={(user) => setModalState({ type: 'password', user })}
+                    />
+                )}
 
-                <UserTable
-                    title="Students"
-                    users={students}
-                    canManage={canManageStudents}
-                    onAdd={() => handleAction('add', null, false)} // Faculty can add students without Principal auth
-                    onEdit={(user) => handleAction('edit', user, false)}
-                    onDelete={(user) => handleAction('delete', user, false)}
-                    onGenerateIdCard={handleGenerateIdCard}
-                />
+                {authenticatedUser?.role === Role.PRINCIPAL && (
+                    <>
+                        <UserTable 
+                            title="Faculty & HODs" 
+                            users={hodsAndFaculty} 
+                            canManage={canManageAcademics}
+                            onAdd={() => handleAction('add', null)}
+                            onEdit={(user) => handleAction('edit', user)} 
+                            onDelete={(user) => handleAction('delete', user)}
+                            onChangePassword={(user) => setModalState({ type: 'password', user })} 
+                        />
+                        <UserTable 
+                            title="Administrative Staff" 
+                            users={staff} 
+                            canManage={canManageSupportStaff}
+                            onAdd={() => handleAction('add', null)}
+                            onEdit={(user) => handleAction('edit', user)} 
+                            onDelete={(user) => handleAction('delete', user)}
+                            onChangePassword={(user) => setModalState({ type: 'password', user })} 
+                        />
+                        <UserTable
+                            title="Students"
+                            users={students}
+                            canManage={canManageStudents}
+                            onAdd={() => handleAction('add', null)}
+                            onEdit={(user) => handleAction('edit', user)}
+                            onDelete={(user) => handleAction('delete', user)}
+                            onGenerateIdCard={handleGenerateIdCard}
+                        />
+                    </>
+                )}
+
+                {(authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY) && (
+                     <>
+                        <UserTable 
+                            title="Administrative Staff" 
+                            users={staff} 
+                            canManage={canManageSupportStaff}
+                            onAdd={() => handleAction('add', null)}
+                            onEdit={(user) => handleAction('edit', user)} 
+                            onDelete={(user) => handleAction('delete', user)} 
+                        />
+                        <UserTable
+                            title="Students"
+                            users={students}
+                            canManage={canManageStudents}
+                            onAdd={() => handleAction('add', null)}
+                            onEdit={(user) => handleAction('edit', user)}
+                            onDelete={(user) => handleAction('delete', user)}
+                            onGenerateIdCard={handleGenerateIdCard}
+                        />
+                    </>
+                )}
             </div>
             
-            {modalState.type === 'auth' && (
-                <AuthModal
-                    action={modalState.action!}
-                    onClose={() => setModalState({ type: null })}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
-            
-            {modalState.type === 'form' && (
+            {modalState.type === 'form' && authenticatedUser && (
                 <UserFormModal
                     user={modalState.user}
+                    currentUser={authenticatedUser}
                     onClose={() => setModalState({ type: null })}
                     onSave={handleSaveUser}
+                />
+            )}
+            {modalState.type === 'password' && modalState.user && (
+                <ChangePasswordModal
+                    user={modalState.user}
+                    onClose={() => setModalState({ type: null })}
+                    onSave={handleSavePassword}
                 />
             )}
         </div>
@@ -457,7 +570,8 @@ const UserTable: React.FC<{
     onEdit: (user: User) => void;
     onDelete: (user: User) => void;
     onGenerateIdCard?: (user: User) => void;
-}> = ({ title, users, canManage, onAdd, onEdit, onDelete, onGenerateIdCard }) => (
+    onChangePassword?: (user: User) => void;
+}> = ({ title, users, canManage, onAdd, onEdit, onDelete, onGenerateIdCard, onChangePassword }) => (
      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
         <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
@@ -506,14 +620,11 @@ const UserTable: React.FC<{
                                         {user.role === Role.STUDENT && onGenerateIdCard && (
                                             <button onClick={() => onGenerateIdCard(user)} title="Generate ID Card" className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><IdCardIcon className="w-5 h-5"/></button>
                                         )}
-                                        {user.role !== Role.PRINCIPAL ? (
-                                            <>
-                                                <button onClick={() => onEdit(user)} className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><EditIcon className="w-5 h-5"/></button>
-                                                <button onClick={() => onDelete(user)} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
-                                            </>
-                                        ) : (
-                                             <span className="text-slate-400 dark:text-slate-500 text-xs italic px-2">Locked</span>
+                                        {onChangePassword && (
+                                            <button onClick={() => onChangePassword(user)} title="Change Password" className="text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><KeyIcon className="w-5 h-5"/></button>
                                         )}
+                                        <button onClick={() => onEdit(user)} className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><EditIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => onDelete(user)} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
                                     </div>
                                 ) : (
                                     <span className="text-slate-400 dark:text-slate-500 text-xs italic">No permissions</span>

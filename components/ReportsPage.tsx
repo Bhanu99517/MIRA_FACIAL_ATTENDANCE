@@ -4,6 +4,7 @@ import { getUsers, getAttendanceForDate, getAttendanceForDateRange } from '../se
 import type { User, AttendanceRecord } from '../types';
 import { Role } from '../types';
 import { Icons } from '../constants';
+import { useAppContext } from '../App';
 
 const BRANCH_OPTIONS = ['All Students', 'CS', 'EC', 'EEE', 'Faculty'];
 
@@ -132,6 +133,7 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 
 
 const ReportsPage: React.FC = () => {
+    const { user } = useAppContext();
     const today = new Date().toISOString().split('T')[0];
     const [startDate, setStartDate] = useState(today);
     const [endDate, setEndDate] = useState(today);
@@ -144,27 +146,30 @@ const ReportsPage: React.FC = () => {
     const [isExporting, setIsExporting] = useState(false);
 
     useEffect(() => {
-        getUsers().then(setAllUsers);
-    }, []);
+        if (user) {
+            getUsers(user).then(setAllUsers);
+        }
+    }, [user]);
 
     useEffect(() => {
+        if (!user) return;
         setLoading(true);
         if (startDate === endDate) {
-            getAttendanceForDate(endDate)
+            getAttendanceForDate(endDate, user)
                 .then(records => {
                     setAttendance(records);
                     setLogRecords([]); 
                 })
                 .finally(() => setLoading(false));
         } else {
-            getAttendanceForDateRange(startDate, endDate)
+            getAttendanceForDateRange(startDate, endDate, user)
                 .then(records => {
                     setLogRecords(records);
                     setAttendance([]); 
                 })
                 .finally(() => setLoading(false));
         }
-    }, [startDate, endDate]);
+    }, [startDate, endDate, user]);
 
     const { filteredUsers, attendanceMap, presentCount, totalCount } = useMemo(() => {
         const isFacultyView = branchFilter === 'Faculty';
@@ -238,9 +243,10 @@ const ReportsPage: React.FC = () => {
     const COLORS = ['#10B981', '#EF4444'];
 
     const handleExport = async () => {
+        if (!user) return;
         setIsExporting(true);
         try {
-            const recordsInRange = await getAttendanceForDateRange(startDate, endDate);
+            const recordsInRange = await getAttendanceForDateRange(startDate, endDate, user);
             const usersById = new Map<string, User>(allUsers.map(u => [u.id, u]));
             const isFacultyView = branchFilter === 'Faculty';
             const normalizedSearch = search.toLowerCase().replace(/-/g, '');

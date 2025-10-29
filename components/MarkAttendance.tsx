@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { getStudentByPin, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService, markAttendance as apiMarkAttendance } from '../services';
+import { useAppContext } from '../App';
 
 // Helper to convert blob to data URL for AI service
 const blobToDataUrl = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
@@ -11,6 +12,7 @@ const blobToDataUrl = (blob: Blob): Promise<string> => new Promise((resolve, rej
 });
 
 export default function MarkAttendance() {
+  const { user: currentUser } = useAppContext();
   const [pin, setPin] = useState('');
   const [student, setStudent] = useState<User | null>(null);
   const [photo, setPhoto] = useState<Blob | null>(null);
@@ -49,8 +51,9 @@ export default function MarkAttendance() {
   }, []);
 
   const loadStudent = async () => {
-    if (!pin) return;
-    const studentData = await getStudentByPin(pin);
+    if (!pin || !currentUser) return;
+    // FIX: Pass the current user to the service call for tenancy checks.
+    const studentData = await getStudentByPin(pin, currentUser);
     if (!studentData) {
         alert('PIN not found');
         setStudent(null);

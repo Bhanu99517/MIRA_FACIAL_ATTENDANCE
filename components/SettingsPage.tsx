@@ -43,7 +43,8 @@ const SettingsPage: React.FC<{ user: User; theme: 'light' | 'dark'; toggleTheme:
     };
 
     const handleProfileSave = async () => {
-        await updateUser(user.id, { ...user, name: profile.name, email: profile.email });
+        // FIX: Pass the current 'user' object as the third argument as required by the updateUser service.
+        await updateUser(user.id, { ...user, name: profile.name, email: profile.email }, user);
         alert("Profile updated successfully! (Note: a page refresh might be needed to see changes in the header)");
     };
 

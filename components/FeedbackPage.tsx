@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { User, Feedback } from '../types';
 import { Role } from '../types';
 import { getFeedback, submitFeedback, updateFeedbackStatus } from '../services';
@@ -129,18 +129,30 @@ const AdminFeedbackView: React.FC<{ allFeedback: Feedback[], onStatusChange: (id
 const FeedbackPage: React.FC<{ user: User }> = ({ user }) => {
     const [allFeedback, setAllFeedback] = useState<Feedback[]>([]);
     
-    const fetchAllFeedback = () => getFeedback().then(setAllFeedback);
+    // FIX: Pass the 'user' object to the service call as required.
+    const fetchAllFeedback = () => getFeedback(user).then(setAllFeedback);
 
     useEffect(() => {
         fetchAllFeedback();
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]);
 
     const handleStatusChange = async (id: string, status: Feedback['status']) => {
-        await updateFeedbackStatus(id, status);
+        // FIX: Pass the 'user' object to the service call as required.
+        await updateFeedbackStatus(id, status, user);
         fetchAllFeedback();
     };
     
     const isAdmin = user.role === Role.PRINCIPAL || user.role === Role.SUPER_ADMIN;
+    const isSuperAdmin = user.role === Role.SUPER_ADMIN;
+
+    const feedbackForAdmin = useMemo(() => {
+        if (user.role === Role.SUPER_ADMIN) {
+            const allowedRoles = [Role.PRINCIPAL, Role.FACULTY, Role.STAFF];
+            return allFeedback.filter(fb => allowedRoles.includes(fb.userRole));
+        }
+        return allFeedback;
+    }, [allFeedback, user.role]);
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -148,26 +160,36 @@ const FeedbackPage: React.FC<{ user: User }> = ({ user }) => {
                 <Icons.feedback className="w-8 h-8 text-primary-500" />
                 Feedback & Support
             </h1>
-            <p className="mt-1 text-slate-500 dark:text-slate-400">Help us improve the Mira Attendance system.</p>
+            <p className="mt-1 text-slate-500 dark:text-slate-400">
+                 {isSuperAdmin
+                    ? 'Review feedback submitted by staff and faculty.'
+                    : 'Help us improve the Mira Attendance system.'}
+            </p>
             
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-1">
-                    <FeedbackForm user={user} onFeedbackSubmitted={fetchAllFeedback} />
+            {isSuperAdmin ? (
+                <div className="mt-8">
+                    <AdminFeedbackView allFeedback={feedbackForAdmin} onStatusChange={handleStatusChange} />
                 </div>
-                <div className="lg:col-span-2">
-                    {isAdmin ? (
-                        <AdminFeedbackView allFeedback={allFeedback} onStatusChange={handleStatusChange} />
-                    ) : (
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-                            <h2 className="text-xl font-bold mb-4">Your Submitted Feedback</h2>
-                            <div className="space-y-4">
-                                {allFeedback.filter(f => f.userId === user.id).map(fb => <FeedbackCard key={fb.id} feedback={fb} onStatusChange={()=>{}} isAdmin={false} />)}
-                                {allFeedback.filter(f => f.userId === user.id).length === 0 && <p className="text-center py-8 text-slate-500">You haven't submitted any feedback yet.</p>}
+            ) : (
+                <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1">
+                        <FeedbackForm user={user} onFeedbackSubmitted={fetchAllFeedback} />
+                    </div>
+                    <div className="lg:col-span-2">
+                        {isAdmin ? (
+                            <AdminFeedbackView allFeedback={feedbackForAdmin} onStatusChange={handleStatusChange} />
+                        ) : (
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
+                                <h2 className="text-xl font-bold mb-4">Your Submitted Feedback</h2>
+                                <div className="space-y-4">
+                                    {allFeedback.filter(f => f.userId === user.id).map(fb => <FeedbackCard key={fb.id} feedback={fb} onStatusChange={()=>{}} isAdmin={false} />)}
+                                    {allFeedback.filter(f => f.userId === user.id).length === 0 && <p className="text-center py-8 text-slate-500">You haven't submitted any feedback yet.</p>}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

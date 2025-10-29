@@ -160,6 +160,7 @@ export interface SyllabusCoverage {
 
 export interface Timetable {
   id: string;
+  college_code: string;
   branch: Branch;
   year: number;
   url: string; // URL to an image

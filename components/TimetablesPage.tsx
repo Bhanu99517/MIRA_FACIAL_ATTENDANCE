@@ -19,10 +19,11 @@ const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
 
     useEffect(() => {
         setLoading(true);
-        getTimetable(branch, year)
+        // FIX: Pass the 'user' object to the service call as required.
+        getTimetable(branch, year, user)
             .then(setTimetable)
             .finally(() => setLoading(false));
-    }, [branch, year]);
+    }, [branch, year, user]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -44,8 +45,10 @@ const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
             const url = reader.result as string;
             if (url) {
                 setLoading(true);
-                await apiSetTimetable(branch, year, url, user.name);
-                const updatedTimetable = await getTimetable(branch, year);
+                // FIX: Pass the 'user' object instead of just the user's name.
+                await apiSetTimetable(branch, year, url, user);
+                // FIX: Pass the 'user' object to the service call as required.
+                const updatedTimetable = await getTimetable(branch, year, user);
                 setTimetable(updatedTimetable);
                 setLoading(false);
                 setUploadModalOpen(false);

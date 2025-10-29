@@ -139,14 +139,16 @@ const SyllabusPage: React.FC<{ user: User }> = ({ user }) => {
     
     const fetchAllData = () => {
         setLoading(true);
-        getAllSyllabusCoverage()
+        // FIX: Pass the 'user' object to the service call as required.
+        getAllSyllabusCoverage(user)
             .then(setAllCoverage)
             .finally(() => setLoading(false));
     };
 
     useEffect(() => {
         fetchAllData();
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]);
 
     const isFacultyOrAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD || user.role === Role.SUPER_ADMIN;
 
@@ -173,7 +175,8 @@ const SyllabusPage: React.FC<{ user: User }> = ({ user }) => {
     }, [filteredCoverage]);
 
     const handleSaveProgress = async (id: string, updates: { topicsCompleted?: number, totalTopics?: number }) => {
-        await apiUpdateSyllabusCoverage(id, updates);
+        // FIX: Pass the 'user' object to the service call as required.
+        await apiUpdateSyllabusCoverage(id, updates, user);
         fetchAllData(); // Refetch all data to show updated progress
     };
 

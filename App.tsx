@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, createContext, useContext, useMemo, useCallback, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -40,7 +42,8 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
-const useAppContext = () => {
+// FIX: Export useAppContext to allow other components to import and use it.
+export const useAppContext = () => {
   const context = useContext(AppContext);
   if (!context) throw new Error("useAppContext must be used within an AppProvider");
   return context;
@@ -58,9 +61,11 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAiAvailable = cogniCraftService.getClientStatus().isInitialized;
 
   const refreshDashboardStats = useCallback(async () => {
-    const stats = await getDashboardStats();
-    setDashboardStats(stats);
-  }, []);
+    if (user) {
+        const stats = await getDashboardStats(user);
+        setDashboardStats(stats);
+    }
+  }, [user]);
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
@@ -72,8 +77,10 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, [theme]);
 
   useEffect(() => {
-      getFaculty().then(setFacultyList);
-  }, []);
+    if (user) {
+      getFaculty(user).then(setFacultyList);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -112,7 +119,7 @@ const Sidebar: React.FC = () => {
                 </div>
                 <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto sidebar-scroll">
                     {navLinks.map((section) => {
-                        if (section.title === 'Academics' && user?.role === Role.STAFF) {
+                        if (section.title === 'Academics' && (user?.role === Role.STAFF || user?.role === Role.SUPER_ADMIN)) {
                             return null;
                         }
                         return (

@@ -11,6 +11,7 @@ import {
     sendEmail 
 } from '../services';
 import { Icons } from '../constants';
+import { useAppContext } from '../App';
 
 // --- Shared Components & Utilities ---
 const inputClasses = "mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition";
@@ -26,6 +27,7 @@ const getStatusChip = (status: ApplicationStatus) => {
 // --- Admin View Components ---
 
 const NewApplicationForm: React.FC<{ onApplicationSubmitted: (app: Application) => void }> = ({ onApplicationSubmitted }) => {
+    const { user: currentUser } = useAppContext();
     const [appType, setAppType] = useState<ApplicationType>(ApplicationType.LEAVE);
     const [pin, setPin] = useState('');
     const [fromDate, setFromDate] = useState('');
@@ -42,8 +44,8 @@ const NewApplicationForm: React.FC<{ onApplicationSubmitted: (app: Application) 
     const handlePinChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const newPin = e.target.value.toUpperCase();
         setPin(newPin);
-        if (newPin.length > 5) {
-            const user = await getUserByPin(newPin);
+        if (newPin.length > 5 && currentUser) {
+            const user = await getUserByPin(newPin, currentUser);
             setFoundUser(user);
         } else {
             setFoundUser(null);
@@ -244,12 +246,12 @@ const AdminView: React.FC<{ user: User }> = ({ user }) => {
 
     const fetchAllApplications = () => {
         setLoadingApps(true);
-        getApplications().then(setApplications).finally(() => setLoadingApps(false));
+        getApplications(user).then(setApplications).finally(() => setLoadingApps(false));
     };
 
     useEffect(() => {
         fetchAllApplications();
-    }, []);
+    }, [user]);
     
     const handleApplicationSubmitted = (app: Application) => {
         alert(`Application for ${app.type} submitted successfully for PIN: ${app.pin}!`);
@@ -258,9 +260,9 @@ const AdminView: React.FC<{ user: User }> = ({ user }) => {
 
     const handleStatusChange = async (app: Application, newStatus: ApplicationStatus.APPROVED | ApplicationStatus.REJECTED) => {
         try {
-            await updateApplicationStatus(app.id, newStatus);
+            await updateApplicationStatus(app.id, newStatus, user);
             
-            const applicant = await getUserByPin(app.pin);
+            const applicant = await getUserByPin(app.pin, user);
             if (applicant?.email && applicant.email_verified) {
                 const subject = `Your ${app.type} Application has been ${newStatus}`;
                 const body = `Dear ${applicant.name},\n\nYour application for a ${app.type} for the reason "${app.payload.reason || app.payload.purpose || 'N/A'}" has been ${newStatus}.\n\nPlease contact the office for further details if required.\n\nRegards,\nGOVERNMENT POLYTECHNIC SANGAREDDY COLLEGE Administration`;

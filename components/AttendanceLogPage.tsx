@@ -6,6 +6,7 @@ import { Branch, Role } from '../types';
 import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService } from '../services';
 import { Icons } from '../constants';
 import { Modal } from '../components';
+import { useAppContext } from '../App';
 
 // --- LOCAL ICONS ---
 const ArrowUpRightIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -155,6 +156,7 @@ const adjustContrast = (ctx: CanvasRenderingContext2D, contrast: number): void =
 
 
 const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Promise<void> }> = ({ user, refreshDashboardStats }) => {
+    const { user: currentUser } = useAppContext();
     type LocationStatus = 'On-Campus' | 'Off-Campus' | 'Fetching' | 'Error' | 'Idle';
     interface LocationData {
       status: LocationStatus;
@@ -167,7 +169,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
 
     const [mode, setMode] = useState<AttendanceMode>(user.role === Role.STUDENT ? 'self' : 'student');
     const [step, setStep] = useState<'capture' | 'verifying' | 'result'>('capture');
-    const [pinParts, setPinParts] = useState({ prefix: '23210', branch: 'EC', roll: '' });
+    const [pinParts, setPinParts] = useState({ prefix: user.college_code ? `23${user.college_code}` : '23210', branch: 'EC', roll: '' });
     const [userToVerify, setUserToVerify] = useState<User | null>(null);
     const [attendanceResult, setAttendanceResult] = useState<AttendanceRecord | null>(null);
     const [historicalData, setHistoricalData] = useState<AttendanceRecord[]>([]);
@@ -209,6 +211,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
     }, [user]);
 
     const handlePinChange = useCallback(async (newPin: string) => {
+        if (!currentUser) return;
         setStudentAlreadyMarked(false);
         setCameraError('');
         setCapturedImage(null);
@@ -217,7 +220,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
         setPinParts(p => ({...p, roll}));
 
         if (roll.length === 3) {
-            const studentUser = await getStudentByPin(`${pinParts.prefix}-${pinParts.branch}-${roll}`);
+            const studentUser = await getStudentByPin(`${pinParts.prefix}-${pinParts.branch}-${roll}`, currentUser);
             if (studentUser) {
                 const todaysRecord = await getTodaysAttendanceForUser(studentUser.id);
                 if (todaysRecord) {
@@ -237,7 +240,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
         } else {
             setUserToVerify(null);
         }
-    }, [pinParts.prefix, pinParts.branch]);
+    }, [pinParts.prefix, pinParts.branch, currentUser]);
 
     const handleMarkAttendance = useCallback(async () => {
         if(!userToVerify) return;
@@ -671,7 +674,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
             <div className="mt-6">
                 <div className="group flex items-center w-full bg-slate-200/20 dark:bg-slate-900/30 border border-slate-400 dark:border-slate-600 rounded-lg p-3 text-xl font-mono tracking-wider focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500/50 transition-all">
                     <select value={pinParts.prefix} onChange={e => {setUserToVerify(null); setStudentAlreadyMarked(false); setPinParts(p => ({ ...p, prefix: e.target.value, roll: '' }));}} className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold">
-                        {['25210', '24210', '23210', '22210', '21210'].map(prefix => (<option key={prefix} value={prefix} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{prefix}</option>))}
+                        {['25210', '24210', '23210', '22210', '21210', '23211'].map(prefix => (<option key={prefix} value={prefix} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{prefix}</option>))}
                     </select>
                     <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
                     <select value={pinParts.branch} onChange={e => {setUserToVerify(null); setStudentAlreadyMarked(false); setPinParts(p => ({...p, branch: e.target.value, roll: ''}));}} className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold">

@@ -20,42 +20,52 @@ const now = new Date().toISOString();
 
 const createAvatar = (seed: string) => `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 
+// --- MULTI-TENANT MOCK DATA ---
 const allStaffAndFaculty = [
-    // Principal
-    { id: 'princ_01', name: 'P. JANAKI DEVI', role: Role.PRINCIPAL, branch: 'ADMIN' },
-    // HODs
-    { id: 'hod_01', name: 'Dr. S.N PADMAVATHI', role: Role.HOD, branch: Branch.CS },
-    { id: 'hod_02', name: 'Dr. CH. VIDYA SAGAR', role: Role.HOD, branch: Branch.EC },
-    { id: 'hod_03', name: 'VANGALA INDIRA PRIYA DARSINI', role: Role.HOD, branch: Branch.EEE },
-    // Faculty
-    { id: 'fac_01', name: 'ARCOT VIDYA SAGAR', role: Role.FACULTY, branch: Branch.EC },
-    { id: 'fac_02', name: 'J.ANAND KUMAR', role: Role.FACULTY, branch: Branch.EEE },
-    { id: 'fac_03', name: 'B. SREE LAKSHMI', role: Role.FACULTY, branch: Branch.EEE },
-    { id: 'fac_04', name: 'BIDARUKOTA SHAKTHI KIRAN', role: Role.FACULTY, branch: Branch.EEE },
-    { id: 'fac_05', name: 'HARESH NANDA', role: Role.FACULTY, branch: Branch.EEE },
-    { id: 'fac_06', name: 'NAMBURU GOWTAMI', role: Role.FACULTY, branch: Branch.EEE },
-    { id: 'fac_07', name: 'B.GOPALA RAO', role: Role.FACULTY, branch: Branch.EC },
-    { id: 'fac_08', name: 'G.SADANANDAM', role: Role.FACULTY, branch: Branch.EC },
-    { id: 'fac_09', name: 'TULLURI MANJOLA', role: Role.FACULTY, branch: Branch.EC },
-    { id: 'fac_10', name: 'UMASHANKAR', role: Role.FACULTY, branch: Branch.EC },
-    { id: 'fac_11', name: 'DONDILETI SRINIVASA REDDY', role: Role.FACULTY, branch: Branch.CS },
-    { id: 'fac_12', name: 'WASEEM RUKSANA', role: Role.FACULTY, branch: Branch.CS },
-    { id: 'fac_13', name: 'G.RAJSHEKHARA REDDY', role: Role.FACULTY, branch: Branch.CS },
-    // Staff
-    { id: 'staff_01', name: 'G.VENKAT REDDY', role: Role.STAFF, branch: 'Library' }, // Librarian
-    { id: 'staff_02', name: 'D. SUBRAMANYAM', role: Role.STAFF, branch: 'Labs' }, // Senior Instructor
-    { id: 'staff_03', name: 'B. SRINIVAS GOUD', role: Role.STAFF, branch: 'Labs' }, // Lab Attender
-    { id: 'staff_04', name: 'AFROZE JABEEN', role: Role.STAFF, branch: 'Office' }, // Admin Officer
-    { id: 'staff_05', name: 'C.SATYAVATHI', role: Role.STAFF, branch: 'Office' }, // Office Superintendent
-    { id: 'staff_06', name: 'MANDALA LAXMI DEVI', role: Role.STAFF, branch: 'Office' }, // Senior Assistant
-    { id: 'staff_07', name: 'G.V.BABITHA', role: Role.STAFF, branch: 'Office' }, // Senior Assistant
-    { id: 'staff_08', name: 'MATHANGI JAGDESHWAR RAO', role: Role.STAFF, branch: 'Office' }, // Junior Assistant
-    { id: 'staff_09', name: 'K. SAILU', role: Role.STAFF, branch: 'Office' }, // Junior Assistant
-    { id: 'staff_10', name: 'NAYAKOTI SUPRIYA', role: Role.STAFF, branch: 'Office' }, // Junior Assistant
-    { id: 'staff_11', name: 'YERRAGOLLA NARSIMLU', role: Role.STAFF, branch: 'Office' }, // Office Subordinate
+    // Principals
+    { id: 'princ_01', name: 'P. JANAKI DEVI', role: Role.PRINCIPAL, branch: 'ADMIN', college_code: '210' }, // GPT Sangareddy
+    { id: 'princ_02', name: 'VINAY KUMAR', role: Role.PRINCIPAL, branch: 'ADMIN', college_code: '002' }, // JNGP
+    // HODs - College 210
+    { id: 'hod_01', name: 'Dr. S.N PADMAVATHI', role: Role.HOD, branch: Branch.CS, college_code: '210' },
+    { id: 'hod_02', name: 'Dr. CH. VIDYA SAGAR', role: Role.HOD, branch: Branch.EC, college_code: '210' },
+    { id: 'hod_03', name: 'VANGALA INDIRA PRIYA DARSINI', role: Role.HOD, branch: Branch.EEE, college_code: '210' },
+    // HODs - College 002
+    { id: 'hod_04', name: 'MALLIKARJUN', role: Role.HOD, branch: Branch.EC, college_code: '002' },
+    // Faculty - College 210
+    { id: 'fac_01', name: 'ARCOT VIDYA SAGAR', role: Role.FACULTY, branch: Branch.EC, college_code: '210' },
+    { id: 'fac_02', name: 'J.ANAND KUMAR', role: Role.FACULTY, branch: Branch.EEE, college_code: '210' },
+    { id: 'fac_03', name: 'B. SREE LAKSHMI', role: Role.FACULTY, branch: Branch.EEE, college_code: '210' },
+    { id: 'fac_04', name: 'BIDARUKOTA SHAKTHI KIRAN', role: Role.FACULTY, branch: Branch.EEE, college_code: '210' },
+    { id: 'fac_05', name: 'HARESH NANDA', role: Role.FACULTY, branch: Branch.EEE, college_code: '210' },
+    { id: 'fac_06', name: 'NAMBURU GOWTAMI', role: Role.FACULTY, branch: Branch.EEE, college_code: '210' },
+    { id: 'fac_07', name: 'B.GOPALA RAO', role: Role.FACULTY, branch: Branch.EC, college_code: '210' },
+    { id: 'fac_08', name: 'G.SADANANDAM', role: Role.FACULTY, branch: Branch.EC, college_code: '210' },
+    { id: 'fac_09', name: 'TULLURI MANJOLA', role: Role.FACULTY, branch: Branch.EC, college_code: '210' },
+    { id: 'fac_10', name: 'UMASHANKAR', role: Role.FACULTY, branch: Branch.EC, college_code: '210' },
+    { id: 'fac_11', name: 'DONDILETI SRINIVASA REDDY', role: Role.FACULTY, branch: Branch.CS, college_code: '210' },
+    { id: 'fac_12', name: 'WASEEM RUKSANA', role: Role.FACULTY, branch: Branch.CS, college_code: '210' },
+    { id: 'fac_13', name: 'G.RAJSHEKHARA REDDY', role: Role.FACULTY, branch: Branch.CS, college_code: '210' },
+    // Faculty - College 002
+    { id: 'fac_13', name: 'BAWH SING', role: Role.FACULTY, branch: Branch.EC, college_code: '002' },
+    // Staff - College 210
+    { id: 'staff_01', name: 'G.VENKAT REDDY', role: Role.STAFF, branch: 'Library', college_code: '210' }, // Librarian
+    { id: 'staff_02', name: 'D. SUBRAMANYAM', role: Role.STAFF, branch: 'Labs', college_code: '210' }, // Senior Instructor
+    { id: 'staff_03', name: 'B. SRINIVAS GOUD', role: Role.STAFF, branch: 'Labs', college_code: '210' }, // Lab Attender
+    { id: 'staff_04', name: 'AFROZE JABEEN', role: Role.STAFF, branch: 'Office', college_code: '210' }, // Admin Officer
+    { id: 'staff_05', name: 'C.SATYAVATHI', role: Role.STAFF, branch: 'Office', college_code: '210' }, // Office Superintendent
+    { id: 'staff_06', name: 'MANDALA LAXMI DEVI', role: Role.STAFF, branch: 'Office', college_code: '210' }, // Senior Assistant
+    { id: 'staff_07', name: 'G.V.BABITHA', role: Role.STAFF, branch: 'Office', college_code: '210' }, // Senior Assistant
+    { id: 'staff_08', name: 'MATHANGI JAGDESHWAR RAO', role: Role.STAFF, branch: 'Office', college_code: '210' }, // Junior Assistant
+    { id: 'staff_09', name: 'K. SAILU', role: Role.STAFF, branch: 'Office', college_code: '210' }, // Junior Assistant
+    { id: 'staff_10', name: 'NAYAKOTI SUPRIYA', role: Role.STAFF, branch: 'Office', college_code: '210' }, // Junior Assistant
+    { id: 'staff_11', name: 'YERRAGOLLA NARSIMLU', role: Role.STAFF, branch: 'Office', college_code: '210' }, // Office Subordinate
+    // Staff - College 002
+    { id: 'staff_03', name: 'B. SRINIVAS GOUD', role: Role.STAFF, branch: 'Labs', college_code: '002' },
+   
 ];
 
 const studentData = [
+    // College 210 Students
     { pin: '23210-EC-001', name: 'KUMMARI VAISHNAVI' },
     { pin: '23210-EC-002', name: 'BAKAM CHANDU' },
     { pin: '23210-EC-003', name: 'TEKMAL MANIPRASAD' },
@@ -111,6 +121,10 @@ const studentData = [
     { pin: '23210-EC-061', name: 'GUNDA SRISHILAM' },
     { pin: '23210-EC-062', name: 'CHAKALI KRISHNA PRASAD' },
     { pin: '23210-EC-063', name: 'CHINTHA VAMSHI KRISHNA' },
+    // College 002 Students
+    { pin: '23002-EC-001', name: 'SRIJA RAO' }, { pin: '23002-EC-002', name: 'VINAY' },
+    { pin: '23002-CS-001', name: 'DIYA MEHTA' }, { pin: '23002-CS-002', name: 'SANA KHAN' },
+    { pin: '23002-EEE-001', name: 'MEERA IYER' }, { pin: '23002-EEE-002', name: 'GEETHA NAIR' },
 ];
 
 let MOCK_USERS: User[] = [];
@@ -124,7 +138,7 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
             name: 'BHANU',
             role: Role.SUPER_ADMIN,
             branch: 'SYSTEM',
-            email: `bhanu@mira.edu`,
+            email: `bhanu99517@gmail.com`,
             imageUrl: createAvatar('Bhanu'),
             referenceImageUrl: createAvatar('Bhanu'),
             password: '9347856661',
@@ -145,6 +159,7 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
                 name: p.name,
                 role: p.role,
                 branch: p.branch,
+                college_code: p.college_code,
                 email: `${p.name.toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.')}@mira.edu`,
                 imageUrl: createAvatar(p.name),
                 referenceImageUrl: createAvatar(p.name),
@@ -161,7 +176,7 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
                 '23210-EC-053': '919347856661',
             };
             return {
-                id: `stud-${pinParts[1].toLowerCase()}-${pinParts[2]}`,
+                id: `stud-${pinParts[0]}-${pinParts[1].toLowerCase()}-${pinParts[2]}`,
                 pin: s.pin,
                 name: s.name,
                 role: Role.STUDENT,
@@ -181,6 +196,16 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
     ];
     storage.setItem('MOCK_USERS', MOCK_USERS);
 }
+
+let userIdToCollegeMap: Map<string, string | undefined> | null = null;
+const getUserIdToCollegeMap = (): Map<string, string | undefined> => {
+    if (!userIdToCollegeMap) {
+        userIdToCollegeMap = new Map<string, string | undefined>();
+        MOCK_USERS.forEach(u => userIdToCollegeMap!.set(u.id, u.college_code));
+    }
+    return userIdToCollegeMap;
+};
+
 
 const semesterSubjects: Record<number, { code: string; name: string }[]> = {
     1: [
@@ -264,9 +289,9 @@ const generateInitialData = () => {
         };
 
         const MOCK_SBTET_RESULTS: SBTETResult[] = [];
-        const ecStudents = MOCK_USERS.filter(u => u.branch === Branch.EC);
+        const students = MOCK_USERS.filter(u => u.role === Role.STUDENT);
 
-        ecStudents.forEach(student => {
+        students.forEach(student => {
             for (let sem = 1; sem <= 5; sem++) {
                 const passingMark = 35;
                 const subjectsForSem = semesterSubjects[sem];
@@ -309,30 +334,27 @@ const generateInitialData = () => {
         storage.setItem('MOCK_SBTET_RESULTS', MOCK_SBTET_RESULTS);
 
         const MOCK_SYLLABUS_COVERAGE: SyllabusCoverage[] = [
-            // 3rd Year (Sem 5) - EC (with percentages from user image)
-            { id: 'ec-3-5-EC-501', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'ME-501', subjectName: 'Industrial Management & Enterpreneurship', facultyId: 'fac_01', facultyName: 'ARCOT VIDYA SAGAR', totalTopics: 20, topicsCompleted: 17, lastUpdated: now }, // 85%
-            { id: 'ec-3-5-EC-502', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-502', subjectName: 'Industrial Electronics', facultyId: 'fac_01', facultyName: 'ARCOT VIDYA SAGAR', totalTopics: 25, topicsCompleted: 23, lastUpdated: now }, // 92%
-            { id: 'ec-3-5-EC-503', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-503', subjectName: 'Data Communication and Computer Networks', facultyId: 'fac_09', facultyName: 'TULLURI MANJOLA', totalTopics: 50, topicsCompleted: 39, lastUpdated: now }, // 78%
-            { id: 'ec-3-5-EC-574', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-574', subjectName: 'Mobile & Optical Fibre Communication', facultyId: 'fac_07', facultyName: 'B.GOPALA RAO', totalTopics: 20, topicsCompleted: 13, lastUpdated: now }, // 65%
-            { id: 'ec-3-5-EC-585', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-585', subjectName: 'Digital Circuit Design using Verilog VHDL', facultyId: 'fac_10', facultyName: 'UMASHANKAR', totalTopics: 20, topicsCompleted: 19, lastUpdated: now }, // 95%
-            { id: 'ec-3-5-EC-506', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-506', subjectName: 'Industrial Electronics Lab', facultyId: 'fac_01', facultyName: 'ARCOT VIDYA SAGAR', totalTopics: 12, topicsCompleted: 10, lastUpdated: now }, // 83%
-            { id: 'ec-3-5-EC-507', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-507', subjectName: 'Computer Hardware and Networking Lab', facultyId: 'fac_09', facultyName: 'TULLURI MANJOLA', totalTopics: 10, topicsCompleted: 3, lastUpdated: now }, // 30%
-            { id: 'ec-3-5-EC-508', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-508', subjectName: 'LabVIEW', facultyId: 'fac_07', facultyName: 'B.GOPALA RAO', totalTopics: 8, topicsCompleted: 8, lastUpdated: now }, // 100%
-            { id: 'ec-3-5-EC-509', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-509', subjectName: 'Digital Circuit Design using Verilog HDL  Lab', facultyId: 'fac_10', facultyName: 'UMASHANKAR', totalTopics: 12, topicsCompleted: 5, lastUpdated: now }, // 42%
-        
-            // 1st Year (Sem 1) - CS
-            { id: 'cs-1-1-CS-101', branch: Branch.CS, year: 1, semester: 1, subjectCode: 'CS-101', subjectName: 'Programming Fundamentals', facultyId: 'fac_04', facultyName: 'BIDARUKOTA SHAKTHI KIRAN', totalTopics: 5, topicsCompleted: 3, lastUpdated: now },
-            { id: 'cs-1-1-CS-102', branch: Branch.CS, year: 1, semester: 1, subjectCode: 'CS-102', subjectName: 'Discrete Mathematics', facultyId: 'fac_05', facultyName: 'HARESH NANDA', totalTopics: 5, topicsCompleted: 4, lastUpdated: now },
+            // College 210, 3rd Year (Sem 5) - EC
+            { id: 'ec-3-5-EC-501', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'ME-501', subjectName: 'Industrial Management & Enterpreneurship', facultyId: 'fac_01', facultyName: 'ARCOT VIDYA SAGAR', totalTopics: 20, topicsCompleted: 17, lastUpdated: now },
+            { id: 'ec-3-5-EC-502', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-502', subjectName: 'Industrial Electronics', facultyId: 'fac_01', facultyName: 'ARCOT VIDYA SAGAR', totalTopics: 25, topicsCompleted: 23, lastUpdated: now },
+            { id: 'ec-3-5-EC-503', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-503', subjectName: 'Data Communication and Computer Networks', facultyId: 'fac_09', facultyName: 'TULLURI MANJOLA', totalTopics: 50, topicsCompleted: 39, lastUpdated: now },
+            { id: 'ec-3-5-EC-574', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-574', subjectName: 'Mobile & Optical Fibre Communication', facultyId: 'fac_07', facultyName: 'B.GOPALA RAO', totalTopics: 20, topicsCompleted: 13, lastUpdated: now },
+            { id: 'ec-3-5-EC-585', branch: Branch.EC, year: 3, semester: 5, subjectCode: 'EC-585', subjectName: 'Digital Circuit Design using Verilog VHDL', facultyId: 'fac_10', facultyName: 'UMASHANKAR', totalTopics: 20, topicsCompleted: 19, lastUpdated: now },
+            
+            // College 211, 1st Year (Sem 1) - EEE
+            { id: 'cs-1-1-CS-101', branch: Branch.EEE, year: 1, semester: 1, subjectCode: 'EEE-101', subjectName: 'Basic Electrical Engineering', facultyId: 'fac_04', facultyName: 'BIDARUKOTA SHAKTHI KIRAN', totalTopics: 5, topicsCompleted: 3, lastUpdated: now },
+            { id: 'cs-1-1-CS-102', branch: Branch.CS, year: 1, semester: 1, subjectCode: 'CS-102', subjectName: 'Intro to Programming', facultyId: 'fac_12', facultyName: 'WASEEM RUKSANA', totalTopics: 5, topicsCompleted: 4, lastUpdated: now },
         ];
         storage.setItem('MOCK_SYLLABUS_COVERAGE', MOCK_SYLLABUS_COVERAGE);
 
         storage.setItem('MOCK_TIMETABLES', [
-            { id: 'tt1', branch: Branch.EC, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'T. Manjula' },
-            { id: 'tt2', branch: Branch.EEE, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'Admin' },
+            { id: 'tt1', college_code: '210', branch: Branch.EC, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'T. Manjula' },
+            { id: 'tt2', college_code: '210', branch: Branch.EEE, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'Admin' },
+            { id: 'tt3', college_code: '211', branch: Branch.CS, year: 1, url: 'https://i.imgur.com/8xT1iJ7.png', updated_at: now, updated_by: 'K. Swapna' },
         ]);
         storage.setItem('MOCK_FEEDBACK', [
             { id: 'fb1', userId: 'fac_09', userName: 'TULLURI MANJOLA', userRole: Role.FACULTY, type: 'Suggestion', message: 'The attendance report page could use a date range filter.', status: 'New', submitted_at: now, is_anonymous: false},
-            { id: 'fb2', userId: 'stud-ec-005', userName: 'KAMMARI UDAY TEJA', userRole: Role.STUDENT, type: 'Bug', message: 'My profile picture is not updating.', status: 'In Progress', submitted_at: now, is_anonymous: false},
+            { id: 'fb2', userId: 'stud-23210-ec-005', userName: 'KAMMARI UDAY TEJA', userRole: Role.STUDENT, type: 'Bug', message: 'My profile picture is not updating.', status: 'In Progress', submitted_at: now, is_anonymous: false},
         ]);
 
         MOCK_USERS.forEach(u => {
@@ -346,6 +368,14 @@ const generateInitialData = () => {
 generateInitialData();
 
 const delay = <T,>(data: T, ms = 300): Promise<T> => new Promise(res => setTimeout(() => res(data), ms));
+
+// --- TENANCY HELPERS ---
+const applyTenantFilter = <T>(items: T[], currentUser: User, getCollegeCode: (item: T) => string | undefined): T[] => {
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code) {
+        return items.filter(item => getCollegeCode(item) === currentUser.college_code);
+    }
+    return items;
+};
 
 // --- EXPORTED API FUNCTIONS ---
 
@@ -392,36 +422,49 @@ export const sendEmail = async (to: string, subject: string, body: string): Prom
     throw new Error("Invalid email address provided for simulated sending.");
 };
   
-export const getStudentByPin = async (pin: string): Promise<User | null> => {
+export const getStudentByPin = async (pin: string, currentUser: User): Promise<User | null> => {
     const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.role === Role.STUDENT);
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && user?.college_code !== currentUser.college_code) {
+        return delay(null); // Principal trying to access student from another college
+    }
     return delay(user || null, 200);
 };
 
-export const getUserByPin = async (pin: string): Promise<User | null> => {
+export const getUserByPin = async (pin: string, currentUser: User): Promise<User | null> => {
     const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase());
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && user?.college_code !== currentUser.college_code) {
+        return delay(null);
+    }
     return delay(user || null, 100);
 }
 
-export const getDashboardStats = async () => {
+export const getDashboardStats = async (currentUser: User) => {
     const today = new Date().toISOString().split('T')[0];
-    const todaysAttendance = (storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.date === today && MOCK_USERS.find(u => u.id === a.userId)?.role === Role.STUDENT);
-    const totalStudents = MOCK_USERS.filter(u => u.role === Role.STUDENT).length;
-    const presentCount = todaysAttendance.filter(a => a.status === 'Present').length;
+    const collegeUsers = applyTenantFilter(MOCK_USERS, currentUser, u => u.college_code);
+    const collegeUserIds = new Set(collegeUsers.map(u => u.id));
+    
+    const todaysAttendance = (storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.date === today && collegeUserIds.has(a.userId));
+    const totalStudents = collegeUsers.filter(u => u.role === Role.STUDENT).length;
+    const presentCount = todaysAttendance.filter(a => a.status === 'Present' && collegeUsers.find(u => u.id === a.userId)?.role === Role.STUDENT).length;
+    
     const absentCount = totalStudents - presentCount;
     const attendancePercentage = totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
     return delay({ presentToday: presentCount, absentToday: absentCount, attendancePercentage });
 };
 
-export const getAttendanceForDate = async (date: string): Promise<AttendanceRecord[]> => {
-    return delay((storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.date === date));
+export const getAttendanceForDate = async (date: string, currentUser: User): Promise<AttendanceRecord[]> => {
+    const allAttendance = storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || [];
+    const todaysAttendance = allAttendance.filter(a => a.date === date);
+    const map = getUserIdToCollegeMap();
+    return delay(applyTenantFilter(todaysAttendance, currentUser, a => map.get(a.userId)));
 };
 
-export const getAttendanceForDateRange = async (startDate: string, endDate: string): Promise<AttendanceRecord[]> => {
+export const getAttendanceForDateRange = async (startDate: string, endDate: string, currentUser: User): Promise<AttendanceRecord[]> => {
     const allAttendance = storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || [];
-    // The dates are strings in "YYYY-MM-DD" format. String comparison works.
     const filtered = allAttendance.filter(a => a.date >= startDate && a.date <= endDate);
-    // Sort by date descending, then by timestamp descending
-    return delay(filtered.sort((a, b) => {
+    const map = getUserIdToCollegeMap();
+    const tenanted = applyTenantFilter(filtered, currentUser, a => map.get(a.userId));
+    return delay(tenanted.sort((a, b) => {
         const dateComparison = b.date.localeCompare(a.date);
         if (dateComparison !== 0) return dateComparison;
         return (b.timestamp || '').localeCompare(a.timestamp || '');
@@ -498,20 +541,33 @@ export const markAttendance = async (userId: string, coordinates: { latitude: nu
     return delay(newRecord);
 };
 
-export const getUsers = async (): Promise<User[]> => delay(storage.getItem<User[]>('MOCK_USERS') || []);
+export const getUsers = async (currentUser: User): Promise<User[]> => {
+    const allUsers = storage.getItem<User[]>('MOCK_USERS') || [];
+    return delay(applyTenantFilter(allUsers, currentUser, u => u.college_code));
+};
 
-export const addUser = async (user: User): Promise<User> => {
+export const addUser = async (user: User, currentUser: User): Promise<User> => {
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code) {
+        user.college_code = currentUser.college_code;
+    }
     const users = storage.getItem<User[]>('MOCK_USERS') || [];
     const newUser = { ...user, id: `user_${Date.now()}`, imageUrl: user.imageUrl || createAvatar(user.name) };
     users.unshift(newUser);
     storage.setItem('MOCK_USERS', users);
     MOCK_USERS = users;
+    userIdToCollegeMap = null;
     return delay(newUser);
 };
 
-export const updateUser = async (id: string, userData: User): Promise<User> => {
+export const updateUser = async (id: string, userData: User, currentUser: User): Promise<User> => {
     let users = storage.getItem<User[]>('MOCK_USERS') || [];
     let updatedUser: User | undefined;
+    const userToUpdate = users.find(u => u.id === id);
+
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && userToUpdate?.college_code !== currentUser.college_code) {
+        throw new Error("Permission denied: cannot update user from another college.");
+    }
+    
     users = users.map(u => {
         if (u.id === id) {
             updatedUser = { ...u, ...userData };
@@ -522,29 +578,41 @@ export const updateUser = async (id: string, userData: User): Promise<User> => {
     if (!updatedUser) throw new Error("User not found");
     storage.setItem('MOCK_USERS', users);
     MOCK_USERS = users;
+    userIdToCollegeMap = null;
     return delay(updatedUser);
 };
 
-export const deleteUser = async (id: string): Promise<{ success: boolean }> => {
+export const deleteUser = async (id: string, currentUser: User): Promise<{ success: boolean }> => {
     let users = storage.getItem<User[]>('MOCK_USERS') || [];
     const initialLength = users.length;
+    const userToDelete = users.find(u => u.id === id);
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && userToDelete?.college_code !== currentUser.college_code) {
+        throw new Error("Permission denied: cannot delete user from another college.");
+    }
+
     users = users.filter(u => u.id !== id);
     const success = users.length < initialLength;
     if (success) {
         storage.setItem('MOCK_USERS', users);
         MOCK_USERS = users;
+        userIdToCollegeMap = null;
     }
     return delay({ success });
 };
 
-export const getFaculty = async(): Promise<User[]> => delay(MOCK_USERS.filter(u => u.role === Role.FACULTY || u.role === Role.PRINCIPAL || u.role === Role.HOD));
+export const getFaculty = async(currentUser: User): Promise<User[]> => {
+    const allFaculty = MOCK_USERS.filter(u => u.role === Role.FACULTY || u.role === Role.PRINCIPAL || u.role === Role.HOD);
+    return delay(applyTenantFilter(allFaculty, currentUser, u => u.college_code));
+}
 
-export const getApplications = async (status?: ApplicationStatus): Promise<Application[]> => {
+export const getApplications = async (currentUser: User, status?: ApplicationStatus): Promise<Application[]> => {
     let apps = storage.getItem<Application[]>('MOCK_APPLICATIONS') || [];
+    const map = getUserIdToCollegeMap();
+    const tenantedApps = applyTenantFilter(apps, currentUser, a => map.get(a.userId));
     if (status) {
-        return delay(apps.filter(a => a.status === status));
+        return delay(tenantedApps.filter(a => a.status === status));
     }
-    return delay(apps);
+    return delay(tenantedApps);
 };
 
 export const getApplicationsByPin = async (pin: string): Promise<Application[]> => {
@@ -567,9 +635,19 @@ export const submitApplication = async (appData: {pin: string, type: Application
     return delay(newApp);
 }
 
-export const updateApplicationStatus = async (appId: string, status: ApplicationStatus): Promise<Application> => {
+export const updateApplicationStatus = async (appId: string, status: ApplicationStatus, currentUser: User): Promise<Application> => {
     let apps = storage.getItem<Application[]>('MOCK_APPLICATIONS') || [];
     let updatedApp: Application | undefined;
+    const map = getUserIdToCollegeMap();
+    
+    const appToUpdate = apps.find(a => a.id === appId);
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code) {
+        const appCollege = map.get(appToUpdate?.userId || '');
+        if (appCollege !== currentUser.college_code) {
+            throw new Error("Permission denied: cannot update application from another college.");
+        }
+    }
+
     apps = apps.map(app => {
         if (app.id === appId) {
             updatedApp = { ...app, status };
@@ -583,38 +661,38 @@ export const updateApplicationStatus = async (appId: string, status: Application
 };
 
 
-// --- New Storage-based APIs ---
-export const getSbtetResult = async (pin: string, semester: number): Promise<SBTETResult | null> => {
-    const results = storage.getItem<SBTETResult[]>('MOCK_SBTET_RESULTS') || [];
-    const result = results.find(r => r.pin === pin && r.semester === semester);
-    return delay(result || null, 250);
-};
-
-export const getAllSbtetResultsForPin = async (pin: string): Promise<SBTETResult[]> => {
+export const getAllSbtetResultsForPin = async (pin: string, currentUser: User): Promise<SBTETResult[]> => {
+    const student = MOCK_USERS.find(u => u.pin === pin);
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && student?.college_code !== currentUser.college_code) {
+        return delay([]);
+    }
     const allResults = storage.getItem<SBTETResult[]>('MOCK_SBTET_RESULTS') || [];
     const studentResults = allResults.filter(r => r.pin === pin).sort((a, b) => a.semester - b.semester);
     return delay(studentResults, 500);
 };
 
-export const getAllSyllabusCoverage = async (): Promise<SyllabusCoverage[]> => {
+export const getAllSyllabusCoverage = async (currentUser: User): Promise<SyllabusCoverage[]> => {
     const allCoverage = storage.getItem<SyllabusCoverage[]>('MOCK_SYLLABUS_COVERAGE') || [];
-    return delay(allCoverage);
+    const map = getUserIdToCollegeMap();
+    return delay(applyTenantFilter(allCoverage, currentUser, s => map.get(s.facultyId)));
 };
 
-export const getSyllabusCoverage = async (branch: Branch, year: number, semester: number): Promise<SyllabusCoverage[]> => {
-    const allCoverage = storage.getItem<SyllabusCoverage[]>('MOCK_SYLLABUS_COVERAGE') || [];
-    const filtered = allCoverage.filter(s => s.branch === branch && s.year === year && s.semester === semester);
-    return delay(filtered);
-};
-
-export const updateSyllabusCoverage = async (id: string, updates: { topicsCompleted?: number, totalTopics?: number }): Promise<SyllabusCoverage> => {
+export const updateSyllabusCoverage = async (id: string, updates: { topicsCompleted?: number, totalTopics?: number }, currentUser: User): Promise<SyllabusCoverage> => {
     let allCoverage = storage.getItem<SyllabusCoverage[]>('MOCK_SYLLABUS_COVERAGE') || [];
     let updatedCoverage: SyllabusCoverage | undefined;
+    const map = getUserIdToCollegeMap();
+    
+    const coverageToUpdate = allCoverage.find(s => s.id === id);
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code) {
+        const coverageCollege = map.get(coverageToUpdate?.facultyId || '');
+        if (coverageCollege !== currentUser.college_code) {
+            throw new Error("Permission denied.");
+        }
+    }
+    
     allCoverage = allCoverage.map(s => {
         if (s.id === id) {
             updatedCoverage = { ...s, ...updates, lastUpdated: new Date().toISOString() };
-            
-            // Ensure topicsCompleted is not greater than totalTopics
             if (updatedCoverage.topicsCompleted > updatedCoverage.totalTopics) {
                 updatedCoverage.topicsCompleted = updatedCoverage.totalTopics;
             }
@@ -627,28 +705,32 @@ export const updateSyllabusCoverage = async (id: string, updates: { topicsComple
     return delay(updatedCoverage);
 };
 
-export const getTimetable = async (branch: Branch, year: number): Promise<Timetable | null> => {
+export const getTimetable = async (branch: Branch, year: number, currentUser: User): Promise<Timetable | null> => {
     const timetables = storage.getItem<Timetable[]>('MOCK_TIMETABLES') || [];
-    const timetable = timetables.find(t => t.branch === branch && t.year === year);
+    const filteredByTenant = applyTenantFilter(timetables, currentUser, t => t.college_code);
+    const timetable = filteredByTenant.find(t => t.branch === branch && t.year === year);
     return delay(timetable || null);
 };
 
-export const setTimetable = async (branch: Branch, year: number, url: string, updatedBy: string): Promise<Timetable> => {
+export const setTimetable = async (branch: Branch, year: number, url: string, currentUser: User): Promise<Timetable> => {
     let timetables = storage.getItem<Timetable[]>('MOCK_TIMETABLES') || [];
-    const existing = timetables.find(t => t.branch === branch && t.year === year);
-    if (existing) {
-        existing.url = url;
-        existing.updated_at = new Date().toISOString();
-        existing.updated_by = updatedBy;
+    if (!currentUser.college_code) throw new Error("User has no college assigned.");
+    
+    const existingIndex = timetables.findIndex(t => t.college_code === currentUser.college_code && t.branch === branch && t.year === year);
+
+    if (existingIndex > -1) {
+        timetables[existingIndex] = { ...timetables[existingIndex], url, updated_at: new Date().toISOString(), updated_by: currentUser.name };
     } else {
-        timetables.push({ id: `tt-${Date.now()}`, branch, year, url, updated_at: new Date().toISOString(), updated_by: updatedBy });
+        timetables.push({ id: `tt-${Date.now()}`, college_code: currentUser.college_code, branch, year, url, updated_at: new Date().toISOString(), updated_by: currentUser.name });
     }
     storage.setItem('MOCK_TIMETABLES', timetables);
-    return delay(timetables.find(t => t.branch === branch && t.year === year)!);
+    return delay(timetables.find(t => t.branch === branch && t.year === year && t.college_code === currentUser.college_code)!);
 };
 
-export const getFeedback = async (): Promise<Feedback[]> => {
-    return delay(storage.getItem<Feedback[]>('MOCK_FEEDBACK') || []);
+export const getFeedback = async (currentUser: User): Promise<Feedback[]> => {
+    const feedbackList = storage.getItem<Feedback[]>('MOCK_FEEDBACK') || [];
+    const map = getUserIdToCollegeMap();
+    return delay(applyTenantFilter(feedbackList, currentUser, f => map.get(f.userId)));
 };
 
 export const submitFeedback = async (feedbackData: Omit<Feedback, 'id' | 'submitted_at' | 'status'>): Promise<Feedback> => {
@@ -664,10 +746,19 @@ export const submitFeedback = async (feedbackData: Omit<Feedback, 'id' | 'submit
     return delay(newFeedback);
 };
 
-export const updateFeedbackStatus = async (id: string, status: Feedback['status']): Promise<Feedback> => {
+export const updateFeedbackStatus = async (id: string, status: Feedback['status'], currentUser: User): Promise<Feedback> => {
     let feedbackList = storage.getItem<Feedback[]>('MOCK_FEEDBACK') || [];
     const feedback = feedbackList.find(f => f.id === id);
     if (!feedback) throw new Error("Feedback not found");
+
+    const map = getUserIdToCollegeMap();
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code) {
+        const feedbackCollege = map.get(feedback.userId);
+        if (feedbackCollege !== currentUser.college_code) {
+             throw new Error("Permission denied.");
+        }
+    }
+
     feedback.status = status;
     storage.setItem('MOCK_FEEDBACK', feedbackList);
     return delay(feedback);

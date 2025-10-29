@@ -6,6 +6,7 @@ import { Icons } from '../constants';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useAppContext } from '../App';
 
 const SummaryStatCard: React.FC<{ title: string; value: string | number; icon: React.ElementType }> = ({ title, value, icon: Icon }) => (
     <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl flex items-center gap-4">
@@ -67,16 +68,18 @@ const AccordionItem: React.FC<{ result: SBTETResult; isActive: boolean; onToggle
 };
 
 
-const SBTETResultsPage: React.FC<{ user: User }> = ({ user }) => {
-    const [pin, setPin] = useState(user.role === Role.STUDENT ? user.pin : '');
+// FIX: This component was missing its return statement, causing it to implicitly return 'void' and fail compilation. The JSX for the page has been added.
+const SBTETResultsPage: React.FC<{ user: User }> = ({ user: initialUser }) => {
+    const { user: currentUser } = useAppContext();
+    const [pin, setPin] = useState(initialUser.role === Role.STUDENT ? initialUser.pin : '');
     const [results, setResults] = useState<SBTETResult[] | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [searchedUser, setSearchedUser] = useState<User | null>(user.role === Role.STUDENT ? user : null);
+    const [searchedUser, setSearchedUser] = useState<User | null>(initialUser.role === Role.STUDENT ? initialUser : null);
     const [isDownloading, setIsDownloading] = useState(false);
     const [activeAccordion, setActiveAccordion] = useState<number | null>(null);
 
-    const isAdmin = user.role === Role.PRINCIPAL || user.role === Role.FACULTY || user.role === Role.HOD || user.role === Role.SUPER_ADMIN;
+    const isAdmin = initialUser.role === Role.PRINCIPAL || initialUser.role === Role.FACULTY || initialUser.role === Role.HOD || initialUser.role === Role.SUPER_ADMIN;
     
     const summary = useMemo(() => {
         if (!results || results.length === 0) return null;
@@ -201,7 +204,7 @@ const SBTETResultsPage: React.FC<{ user: User }> = ({ user }) => {
 
     const handleFetchResult = async (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!pin || !searchedUser) {
+        if (!pin || !searchedUser || !currentUser) {
              setError("Please enter a valid PIN for a student.");
              setResults(null);
              return;
@@ -210,7 +213,7 @@ const SBTETResultsPage: React.FC<{ user: User }> = ({ user }) => {
         setError('');
         setResults(null);
         try {
-            const data = await getAllSbtetResultsForPin(pin);
+            const data = await getAllSbtetResultsForPin(pin, currentUser);
             if (data && data.length > 0) {
                 setResults(data);
                 setActiveAccordion(data[data.length-1].semester); // Open last semester by default
@@ -225,103 +228,94 @@ const SBTETResultsPage: React.FC<{ user: User }> = ({ user }) => {
     };
     
     useEffect(() => {
-        if (user.role === Role.STUDENT) {
+        if (initialUser.role === Role.STUDENT) {
             handleFetchResult();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
+    }, [initialUser]);
 
     const handlePinSearch = async (searchPin: string) => {
         setPin(searchPin.toUpperCase());
-        if (searchPin.length >= 10) { // e.g. 23210-EC-001
-            const foundUser = await getUserByPin(searchPin.toUpperCase());
+        if (searchPin.length >= 10 && currentUser) { // e.g. 23210-EC-001
+            const foundUser = await getUserByPin(searchPin.toUpperCase(), currentUser);
             setSearchedUser(foundUser);
              if (!foundUser) {
-                setError("Student with this PIN not found.");
+                setError("Student with this PIN not found in your college.");
                 setResults(null);
             } else {
-                setError("");
+                setError('');
             }
         } else {
             setSearchedUser(null);
-            setResults(null);
         }
-    }
+    };
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
                 <Icons.results className="w-8 h-8 text-primary-500" />
                 SBTET Results
             </h1>
-            <p className="mt-1 text-slate-500 dark:text-slate-400">View a consolidated academic report for any student.</p>
+            {isAdmin && (
+                <form onSubmit={handleFetchResult} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-lg flex items-center gap-2">
+                    <input
+                        type="text"
+                        placeholder="Enter Student PIN..."
+                        value={pin}
+                        onChange={(e) => handlePinSearch(e.target.value)}
+                        className="flex-grow p-2 border rounded-lg bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-primary-500"
+                    />
+                    <button type="submit" disabled={loading || !searchedUser} className="p-2 px-4 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 disabled:bg-slate-400">
+                        {loading ? 'Fetching...' : 'Get Results'}
+                    </button>
+                </form>
+            )}
+            {error && <p className="text-center text-red-500 bg-red-100 dark:bg-red-900/50 p-3 rounded-lg">{error}</p>}
+            {loading && !results && <p className="text-center py-10">Loading results...</p>}
+            {results && searchedUser && summary && (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{searchedUser.name}</h2>
+                                <p className="text-slate-500 dark:text-slate-400 font-mono">{searchedUser.pin}</p>
+                            </div>
+                            <button onClick={handleDownloadPdf} disabled={isDownloading} className="font-semibold text-sm py-2 px-4 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors flex items-center gap-2">
+                                <Icons.download className="w-4 h-4" />
+                                {isDownloading ? 'Downloading...' : 'Download as PDF'}
+                            </button>
+                        </div>
+                        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <SummaryStatCard title="Overall CGPA" value={summary.cgpa} icon={Icons.reports} />
+                            <SummaryStatCard title="Total Credits" value={summary.totalCredits} icon={Icons.checkCircle} />
+                            <SummaryStatCard title="Backlogs" value={summary.backlogs} icon={Icons.xCircle} />
+                        </div>
+                    </div>
 
-            <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-                {isAdmin && (
-                    <form onSubmit={handleFetchResult} className="flex flex-col sm:flex-row items-end gap-4">
-                        <div className="flex-grow w-full">
-                            <label className="block text-sm font-medium">Student PIN</label>
-                            <input
-                                type="text"
-                                value={pin}
-                                onChange={(e) => handlePinSearch(e.target.value)}
-                                placeholder="Enter student PIN (e.g., 23210-EC-001)"
-                                className="mt-1 w-full p-3 bg-slate-100 dark:bg-slate-900 rounded-lg border-2 border-transparent focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                            />
-                            {pin && <p className={`text-xs mt-1 ${searchedUser ? 'text-green-600' : 'text-red-600'}`}>{searchedUser ? `Found: ${searchedUser.name}` : 'No student found.'}</p>}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 space-y-3">
+                            {results.map(res => (
+                                <AccordionItem key={res.id} result={res} isActive={activeAccordion === res.semester} onToggle={() => setActiveAccordion(prev => prev === res.semester ? null : res.semester)} />
+                            ))}
                         </div>
-                        <button type="submit" disabled={loading || !searchedUser} className="font-semibold py-3 px-6 rounded-lg transition-colors bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 disabled:bg-slate-400 dark:disabled:bg-slate-600 w-full sm:w-auto">
-                            {loading ? 'Fetching...' : 'Get Results'}
-                        </button>
-                    </form>
-                )}
-
-                {loading && <div className="text-center py-10 font-semibold animate-pulse">Fetching academic history...</div>}
-                {error && <div className="text-center py-10 text-red-500 bg-red-50 dark:bg-red-900/50 p-4 rounded-lg mt-4">{error}</div>}
-                {results && summary && searchedUser && (
-                    <div className="mt-8 space-y-8 animate-fade-in">
-                        <div>
-                             <h2 className="text-2xl font-bold">Academic Report for {searchedUser.name}</h2>
-                             <p className="text-slate-500 dark:text-slate-400">PIN: {searchedUser.pin}</p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                           <SummaryStatCard title="Overall CGPA" value={summary.cgpa} icon={Icons.reports} />
-                           <SummaryStatCard title="Total Credits Earned" value={summary.totalCredits} icon={Icons.checkCircle} />
-                           <SummaryStatCard title="Total Backlogs" value={summary.backlogs} icon={Icons.xCircle} />
-                        </div>
-                        <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl">
-                            <h3 className="font-bold mb-2 text-center">SGPA Trend</h3>
-                             <ResponsiveContainer width="100%" height={250}>
-                                <BarChart data={summary.sgpaData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                    <XAxis dataKey="name" stroke="#64748b" />
-                                    <YAxis stroke="#64748b" domain={[0, 10]}/>
-                                    <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}/>
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
+                            <h3 className="font-bold text-lg mb-4">SGPA Trend</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={summary.sgpaData} style={{ colorScheme: 'light dark' }}>
+                                    <XAxis dataKey="name" stroke="currentColor" opacity={0.6} fontSize={12} />
+                                    <YAxis stroke="currentColor" opacity={0.6} fontSize={12} domain={[0, 10]} />
+                                    <Tooltip
+                                        cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
+                                        contentStyle={{ backgroundColor: 'var(--bg-card, #fff)', border: '1px solid var(--border-color, #ccc)' }}
+                                     />
                                     <Legend />
-                                    <Bar dataKey="SGPA" fill="#0ea5e9" barSize={40} radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="SGPA" fill="var(--primary-color, #3b82f6)" />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
-                        <div>
-                            <h3 className="text-xl font-bold mb-4">Semester-wise Details</h3>
-                            <div className="space-y-2">
-                               {results.map(result => (
-                                   <AccordionItem 
-                                        key={result.id} 
-                                        result={result} 
-                                        isActive={activeAccordion === result.semester}
-                                        onToggle={() => setActiveAccordion(prev => prev === result.semester ? null : result.semester)}
-                                    />
-                               ))}
-                            </div>
-                        </div>
-                         <div className="text-center pt-4">
-                            <button onClick={handleDownloadPdf} disabled={isDownloading} className="font-semibold py-2 px-6 rounded-lg transition-colors bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 flex items-center gap-2 mx-auto disabled:bg-slate-400 dark:disabled:bg-slate-600">
-                                {isDownloading ? 'Generating...' : <><Icons.download className="w-5 h-5" /> Download Full Report (PDF)</>}
-                            </button>
-                        </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };
