@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, addUser, updateUser, deleteUser } from '../services';
 import type { User } from '../types';
@@ -190,6 +189,9 @@ const UserFormModal: React.FC<{
         }
         if (currentUser.role === Role.PRINCIPAL) {
             return [Role.HOD, Role.FACULTY, Role.STAFF, Role.STUDENT];
+        }
+        if (currentUser.role === Role.HOD || currentUser.role === Role.FACULTY) {
+            return [Role.FACULTY, Role.STAFF, Role.STUDENT];
         }
         return [];
     }, [currentUser]);
@@ -431,9 +433,15 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
 
     // Hierarchical access control logic
     const canManagePrincipals = authenticatedUser?.role === Role.SUPER_ADMIN;
-    const canManageAcademics = authenticatedUser?.role === Role.PRINCIPAL; // HODs & Faculty
-    const canManageSupportStaff = authenticatedUser?.role === Role.PRINCIPAL;
-    const canManageStudents = authenticatedUser?.role === Role.PRINCIPAL;
+    const canManageAcademics = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canManageSupportStaff = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canManageStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+
+    // Visibility logic
+    const canSeePrincipals = authenticatedUser?.role === Role.SUPER_ADMIN;
+    const canSeeAcademics = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canSeeStaff = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canSeeStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
 
     const handleAction = (action: 'add' | 'edit' | 'delete', userToManage: User | null) => {
         if (action === 'delete' && userToManage && authenticatedUser) {
@@ -476,7 +484,7 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="space-y-8">
-                {authenticatedUser?.role === Role.SUPER_ADMIN && (
+                {canSeePrincipals && (
                     <UserTable 
                         title="College Admins (Principals)" 
                         users={principals} 
@@ -488,58 +496,40 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                     />
                 )}
 
-                {authenticatedUser?.role === Role.PRINCIPAL && (
-                    <>
-                        <UserTable 
-                            title="Faculty & HODs" 
-                            users={hodsAndFaculty} 
-                            canManage={canManageAcademics}
-                            onAdd={() => handleAction('add', null)}
-                            onEdit={(user) => handleAction('edit', user)} 
-                            onDelete={(user) => handleAction('delete', user)}
-                            onChangePassword={(user) => setModalState({ type: 'password', user })} 
-                        />
-                        <UserTable 
-                            title="Administrative Staff" 
-                            users={staff} 
-                            canManage={canManageSupportStaff}
-                            onAdd={() => handleAction('add', null)}
-                            onEdit={(user) => handleAction('edit', user)} 
-                            onDelete={(user) => handleAction('delete', user)}
-                            onChangePassword={(user) => setModalState({ type: 'password', user })} 
-                        />
-                        <UserTable
-                            title="Students"
-                            users={students}
-                            canManage={canManageStudents}
-                            onAdd={() => handleAction('add', null)}
-                            onEdit={(user) => handleAction('edit', user)}
-                            onDelete={(user) => handleAction('delete', user)}
-                            onGenerateIdCard={handleGenerateIdCard}
-                        />
-                    </>
+                {canSeeAcademics && (
+                    <UserTable 
+                        title="Faculty & HODs" 
+                        users={hodsAndFaculty} 
+                        canManage={canManageAcademics}
+                        onAdd={() => handleAction('add', null)}
+                        onEdit={(user) => handleAction('edit', user)} 
+                        onDelete={(user) => handleAction('delete', user)}
+                        onChangePassword={(user) => setModalState({ type: 'password', user })} 
+                    />
+                )}
+                
+                {canSeeStaff && (
+                    <UserTable 
+                        title="Administrative Staff" 
+                        users={staff} 
+                        canManage={canManageSupportStaff}
+                        onAdd={() => handleAction('add', null)}
+                        onEdit={(user) => handleAction('edit', user)} 
+                        onDelete={(user) => handleAction('delete', user)}
+                        onChangePassword={(user) => setModalState({ type: 'password', user })} 
+                    />
                 )}
 
-                {(authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY) && (
-                     <>
-                        <UserTable 
-                            title="Administrative Staff" 
-                            users={staff} 
-                            canManage={canManageSupportStaff}
-                            onAdd={() => handleAction('add', null)}
-                            onEdit={(user) => handleAction('edit', user)} 
-                            onDelete={(user) => handleAction('delete', user)} 
-                        />
-                        <UserTable
-                            title="Students"
-                            users={students}
-                            canManage={canManageStudents}
-                            onAdd={() => handleAction('add', null)}
-                            onEdit={(user) => handleAction('edit', user)}
-                            onDelete={(user) => handleAction('delete', user)}
-                            onGenerateIdCard={handleGenerateIdCard}
-                        />
-                    </>
+                {canSeeStudents && (
+                    <UserTable
+                        title="Students"
+                        users={students}
+                        canManage={canManageStudents}
+                        onAdd={() => handleAction('add', null)}
+                        onEdit={(user) => handleAction('edit', user)}
+                        onDelete={(user) => handleAction('delete', user)}
+                        onGenerateIdCard={handleGenerateIdCard}
+                    />
                 )}
             </div>
             

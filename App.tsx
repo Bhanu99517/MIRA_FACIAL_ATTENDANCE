@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useEffect, createContext, useContext, useMemo, useCallback, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -129,6 +123,9 @@ const Sidebar: React.FC = () => {
                         <div key={section.title}>
                             <h3 className="px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{section.title}</h3>
                             {section.links.map((link) => {
+                                if (user?.role === Role.SUPER_ADMIN && (link.name === 'Reports' || link.name === 'AttendanceLog')) {
+                                    return null;
+                                }
                                 const isAiLink = link.name === 'CogniCraft AI';
                                 const isDisabled = isAiLink && !isAiAvailable;
 
@@ -176,7 +173,7 @@ const Header: React.FC = () => {
                 </button>
                 <div className="flex-1 ml-4 md:ml-0">
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome, {user?.name.split(' ')[0]}!</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Let's manage attendance efficiently.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{user?.role === Role.SUPER_ADMIN ? "Let's manage the system." : "Let's manage attendance efficiently."}</p>
                 </div>
 
                 <div className="flex items-center space-x-4">
@@ -346,31 +343,42 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8">
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="Present Today" value={dashboardStats.presentToday} icon={Icons.checkCircle} color="bg-green-500" />
-        <StatCard title="Absent Today" value={dashboardStats.absentToday} icon={Icons.xCircle} color="bg-red-500" />
-        <StatCard title="Attendance Rate" value={`${dashboardStats.attendancePercentage}%`} icon={Icons.reports} color="bg-primary-500" />
-      </div>
+      {user?.role !== Role.SUPER_ADMIN && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatCard title="Present Today" value={dashboardStats.presentToday} icon={Icons.checkCircle} color="bg-green-500" />
+            <StatCard title="Absent Today" value={dashboardStats.absentToday} icon={Icons.xCircle} color="bg-red-500" />
+            <StatCard title="Attendance Rate" value={`${dashboardStats.attendancePercentage}%`} icon={Icons.reports} color="bg-primary-500" />
+        </div>
+      )}
 
       {/* Action Cards */}
       <div>
          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <ActionCard title="Mark Attendance" description="Use facial recognition to log attendance." icon={Icons.attendance} onClick={() => setPage('AttendanceLog')} />
-            <ActionCard title="View Reports" description="Analyze attendance data and export." icon={Icons.reports} onClick={() => setPage('Reports')} />
-            <ActionCard title="Manage Users" description="Add, edit, or remove system users." icon={Icons.users} onClick={() => setPage('ManageUsers')} />
+            {user?.role !== Role.SUPER_ADMIN && (
+                <>
+                    <ActionCard title="Mark Attendance" description="Use facial recognition to log attendance." icon={Icons.attendance} onClick={() => setPage('AttendanceLog')} />
+                    <ActionCard title="View Reports" description="Analyze attendance data and export." icon={Icons.reports} onClick={() => setPage('Reports')} />
+                </>
+            )}
+            
+            {user && [Role.SUPER_ADMIN, Role.PRINCIPAL, Role.HOD, Role.FACULTY].includes(user.role) && (
+              <ActionCard title="Manage Users" description="Add, edit, or remove system users." icon={Icons.users} onClick={() => setPage('ManageUsers')} />
+            )}
             
             {user?.role === Role.STAFF ? (
                 <ActionCard title="Submit Feedback" description="Report issues or suggest improvements." icon={Icons.feedback} onClick={() => setPage('Feedback')} />
-            ) : isAiAvailable ? (
-                <ActionCard title="CogniCraft AI" description="AI tools for faculty and students." icon={Icons.cogniCraft} onClick={() => setPage('CogniCraft AI')} />
-            ) : (
-                <div className="group bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg text-left w-full cursor-not-allowed opacity-60" title="CogniCraft AI is not configured by the administrator">
-                    <Icons.cogniCraft className="h-10 w-10 text-slate-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-500 dark:text-slate-400">CogniCraft AI</h3>
-                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Service unavailable.</p>
-                </div>
-            )}
+            ) : user?.role !== Role.SUPER_ADMIN ? (
+                 isAiAvailable ? (
+                    <ActionCard title="CogniCraft AI" description="AI tools for faculty and students." icon={Icons.cogniCraft} onClick={() => setPage('CogniCraft AI')} />
+                ) : (
+                    <div className="group bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg text-left w-full cursor-not-allowed opacity-60" title="CogniCraft AI is not configured by the administrator">
+                        <Icons.cogniCraft className="h-10 w-10 text-slate-400 mb-4" />
+                        <h3 className="text-lg font-semibold text-slate-500 dark:text-slate-400">CogniCraft AI</h3>
+                        <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Service unavailable.</p>
+                    </div>
+                )
+            ) : null }
         </div>
       </div>
      
