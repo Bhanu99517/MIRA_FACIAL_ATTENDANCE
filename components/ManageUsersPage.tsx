@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, addUser, updateUser, deleteUser } from '../services';
 import type { User } from '../types';
 import { Role } from '../types';
-import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon, KeyIcon } from './Icons';
+import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon, KeyIcon, UserMinusIcon, UserPlusIcon } from './Icons';
 import { RolePill } from '../components';
 
 const createAvatar = (seed: string) => `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(seed)}`;
@@ -445,8 +445,15 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
 
     const handleAction = (action: 'add' | 'edit' | 'delete', userToManage: User | null) => {
         if (action === 'delete' && userToManage && authenticatedUser) {
-            if (window.confirm(`Are you sure you want to delete ${userToManage.name}? This action cannot be undone.`)) {
-                deleteUser(userToManage.id, authenticatedUser).then(fetchUsers);
+            if (authenticatedUser.role === Role.SUPER_ADMIN && userToManage.role === Role.PRINCIPAL) {
+                 const actionText = userToManage.access_revoked ? '>> RESTORE ACCESS PROTOCOL :: FOR' : '>> INITIATE ACCESS REVOCATION :: FOR';
+                 if (window.confirm(`${actionText} ${userToManage.name} (PIN: ${userToManage.pin})? _`)) {
+                    deleteUser(userToManage.id, authenticatedUser).then(fetchUsers);
+                }
+            } else {
+                if (window.confirm(`Are you sure you want to delete ${userToManage.name}? This action cannot be undone.`)) {
+                    deleteUser(userToManage.id, authenticatedUser).then(fetchUsers);
+                }
             }
         } else {
             setModalState({ type: 'form', user: userToManage });
@@ -562,7 +569,7 @@ const UserTable: React.FC<{
     onGenerateIdCard?: (user: User) => void;
     onChangePassword?: (user: User) => void;
 }> = ({ title, users, canManage, onAdd, onEdit, onDelete, onGenerateIdCard, onChangePassword }) => (
-     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
+     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg terminal-window" data-title={title.replace(/\s/g, '_').toLowerCase()}>
         <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
             {canManage && (
@@ -583,7 +590,7 @@ const UserTable: React.FC<{
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                     {users.map(user => (
-                        <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <tr key={user.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${user.access_revoked ? 'opacity-50' : ''}`}>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0 h-11 w-11">
@@ -600,9 +607,15 @@ const UserTable: React.FC<{
                                 <div>{user.email}</div>
                             </td>
                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                                <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.email_verified ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'}`}>
-                                    {user.email_verified ? 'Verified' : 'Unverified'}
-                                </span>
+                                {user.access_revoked ? (
+                                    <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300`}>
+                                        Access Revoked
+                                    </span>
+                                ) : (
+                                    <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.email_verified ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'}`}>
+                                        {user.email_verified ? 'Verified' : 'Unverified'}
+                                    </span>
+                                )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 {canManage ? (
@@ -614,7 +627,15 @@ const UserTable: React.FC<{
                                             <button onClick={() => onChangePassword(user)} title="Change Password" className="text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><KeyIcon className="w-5 h-5"/></button>
                                         )}
                                         <button onClick={() => onEdit(user)} className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><EditIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => onDelete(user)} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
+                                        {user.role === Role.PRINCIPAL ? (
+                                            user.access_revoked ? (
+                                                 <button onClick={() => onDelete(user)} title="Restore Access" className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><UserPlusIcon className="w-5 h-5"/></button>
+                                            ) : (
+                                                 <button onClick={() => onDelete(user)} title="Revoke Access" className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><UserMinusIcon className="w-5 h-5"/></button>
+                                            )
+                                        ) : (
+                                            <button onClick={() => onDelete(user)} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
+                                        )}
                                     </div>
                                 ) : (
                                     <span className="text-slate-400 dark:text-slate-500 text-xs italic">No permissions</span>

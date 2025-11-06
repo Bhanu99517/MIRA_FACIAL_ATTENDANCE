@@ -31,6 +31,7 @@ export interface User {
   imageUrl?: string;
   referenceImageUrl?: string;
   password?: string;
+  access_revoked?: boolean;
 }
 
 export interface AttendanceRecord {

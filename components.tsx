@@ -167,7 +167,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
       <div 
-        className="bg-white dark:bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-md m-4 animate-fade-in-down"
+        className="bg-white dark:bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-md m-4 animate-fade-in-down terminal-window"
+        data-title={title.replace(/\s/g, '_').toLowerCase()}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">

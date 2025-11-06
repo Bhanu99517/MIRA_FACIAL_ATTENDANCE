@@ -144,6 +144,7 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
             password: '9347856661',
             email_verified: true,
             parent_email_verified: false,
+            access_revoked: false,
         },
         ...allStaffAndFaculty.map(p => {
             const pinPrefixes: Record<string, string> = {
@@ -166,6 +167,7 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
                 password: 'qwe123mnb890',
                 email_verified: true,
                 parent_email_verified: false,
+                access_revoked: false,
             };
         }),
         ...studentData.map(s => {
@@ -191,6 +193,7 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
                 email_verified: Math.random() > 0.2,
                 parent_email_verified: Math.random() > 0.5,
                 phoneNumber: mockPhoneNumbers[s.pin],
+                access_revoked: false,
             };
         })
     ];
@@ -383,6 +386,11 @@ export const login = async (pin: string, pass: string): Promise<User | { otpRequ
     const allowedLoginRoles = [Role.SUPER_ADMIN, Role.PRINCIPAL, Role.FACULTY, Role.HOD, Role.STAFF];
     const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.password === pass && allowedLoginRoles.includes(u.role));
 
+    if (user && user.access_revoked) {
+        console.warn(`Login attempt for revoked user: ${user.name}`);
+        return delay(null);
+    }
+
     if (user && user.pin === 'BHANU-00' && user.role === Role.SUPER_ADMIN) {
         return delay({ otpRequired: true, user: user });
     }
@@ -551,7 +559,7 @@ export const addUser = async (user: User, currentUser: User): Promise<User> => {
         user.college_code = currentUser.college_code;
     }
     const users = storage.getItem<User[]>('MOCK_USERS') || [];
-    const newUser = { ...user, id: `user_${Date.now()}`, imageUrl: user.imageUrl || createAvatar(user.name) };
+    const newUser = { ...user, id: `user_${Date.now()}`, imageUrl: user.imageUrl || createAvatar(user.name), access_revoked: false };
     users.unshift(newUser);
     storage.setItem('MOCK_USERS', users);
     MOCK_USERS = users;
@@ -586,6 +594,27 @@ export const deleteUser = async (id: string, currentUser: User): Promise<{ succe
     let users = storage.getItem<User[]>('MOCK_USERS') || [];
     const initialLength = users.length;
     const userToDelete = users.find(u => u.id === id);
+    if (!userToDelete) return { success: false };
+
+    // Super Admin managing a Principal -> Soft delete (toggle access)
+    if (currentUser.role === Role.SUPER_ADMIN && userToDelete.role === Role.PRINCIPAL) {
+        let success = false;
+        users = users.map(u => {
+            if (u.id === id) {
+                success = true;
+                return { ...u, access_revoked: !u.access_revoked };
+            }
+            return u;
+        });
+        if (success) {
+            storage.setItem('MOCK_USERS', users);
+            MOCK_USERS = users;
+            userIdToCollegeMap = null;
+        }
+        return delay({ success });
+    }
+    
+    // Regular hard delete for other cases
     if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && userToDelete?.college_code !== currentUser.college_code) {
         throw new Error("Permission denied: cannot delete user from another college.");
     }
