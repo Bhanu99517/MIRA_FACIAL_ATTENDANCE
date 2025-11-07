@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, addUser, updateUser, deleteUser } from '../services';
 import type { User } from '../types';
@@ -182,9 +183,10 @@ const UserFormModal: React.FC<{
     onSave: (user: User) => void;
 }> = ({ user, currentUser, onClose, onSave }) => {
     const isEditMode = !!user;
+    const isSuperAdmin = currentUser.role === Role.SUPER_ADMIN;
 
     const allowedRoles = useMemo(() => {
-        if (currentUser.role === Role.SUPER_ADMIN) {
+        if (isSuperAdmin) {
             return Object.values(Role).filter(r => r !== Role.SUPER_ADMIN);
         }
         if (currentUser.role === Role.PRINCIPAL) {
@@ -194,7 +196,7 @@ const UserFormModal: React.FC<{
             return [Role.FACULTY, Role.STAFF, Role.STUDENT];
         }
         return [];
-    }, [currentUser]);
+    }, [currentUser, isSuperAdmin]);
 
     const [formData, setFormData] = useState<Partial<User>>({
         name: user?.name || '',
@@ -267,11 +269,14 @@ const UserFormModal: React.FC<{
 
     const inputClasses = "mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500";
     const previewSrc = formData.imageUrl || (formData.name ? createAvatar(formData.name) : '');
+    const modalTitle = isEditMode
+        ? (isSuperAdmin ? 'Modify Asset' : 'Edit User')
+        : (isSuperAdmin ? 'Register New Asset' : 'Register New User');
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 flex justify-center items-center p-4" onClick={onClose}>
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 w-full max-w-lg animate-fade-in-down" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6">{isEditMode ? 'Edit User' : 'Register New User'}</h2>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6">{modalTitle}</h2>
                 <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -356,12 +361,14 @@ const UserFormModal: React.FC<{
 
 const ChangePasswordModal: React.FC<{
     user: User;
+    currentUser: User;
     onClose: () => void;
     onSave: (user: User, newPass: string) => void;
-}> = ({ user, onClose, onSave }) => {
+}> = ({ user, currentUser, onClose, onSave }) => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
+    const isSuperAdmin = currentUser.role === Role.SUPER_ADMIN;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -378,12 +385,13 @@ const ChangePasswordModal: React.FC<{
     };
 
     const inputClasses = "mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500";
+    const modalTitle = isSuperAdmin ? 'Re-Key Asset' : 'Change Password';
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 w-full max-w-md animate-fade-in-down" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Change Password</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Set a new password for <span className="font-semibold">{user.name}</span>.</p>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">{modalTitle}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{isSuperAdmin ? `Set new credentials for asset: ` : `Set a new password for `} <span className="font-semibold">{user.name}</span>.</p>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium">New Password</label>
@@ -442,21 +450,35 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
     const canSeeAcademics = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
     const canSeeStaff = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
     const canSeeStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    
+    const isSuperAdmin = authenticatedUser?.role === Role.SUPER_ADMIN;
 
     const handleAction = (action: 'add' | 'edit' | 'delete', userToManage: User | null) => {
         if (action === 'delete' && userToManage && authenticatedUser) {
             if (authenticatedUser.role === Role.SUPER_ADMIN && userToManage.role === Role.PRINCIPAL) {
-                 const actionText = userToManage.access_revoked ? '>> RESTORE ACCESS PROTOCOL :: FOR' : '>> INITIATE ACCESS REVOCATION :: FOR';
-                 if (window.confirm(`${actionText} ${userToManage.name} (PIN: ${userToManage.pin})? _`)) {
+                 const actionText = userToManage.access_revoked ? '>> RESTORE_CONNECTION PROTOCOL :: FOR' : '>> INITIATE ACCESS_TERMINATION :: FOR';
+                 const promptText = `${actionText} ${userToManage.name} (ASSET_ID: ${userToManage.pin})? EXECUTE?_`;
+                 if (window.confirm(promptText)) {
                     deleteUser(userToManage.id, authenticatedUser).then(fetchUsers);
                 }
             } else {
-                if (window.confirm(`Are you sure you want to delete ${userToManage.name}? This action cannot be undone.`)) {
+                 const promptText = isSuperAdmin 
+                    ? `>> PURGE_ASSET PROTOCOL :: This will permanently erase asset ${userToManage.name}. This action cannot be undone. CONFIRM?_`
+                    : `Are you sure you want to delete ${userToManage.name}? This action cannot be undone.`;
+                if (window.confirm(promptText)) {
                     deleteUser(userToManage.id, authenticatedUser).then(fetchUsers);
                 }
             }
         } else {
             setModalState({ type: 'form', user: userToManage });
+        }
+    };
+    
+    const handlePermanentDelete = (userToDelete: User) => {
+        if (!authenticatedUser) return;
+        const confirmMessage = `>> PERMANENT DELETION PROTOCOL :: This will remove all data associated with asset ${userToDelete.name} and cannot be undone. Are you sure you wish to proceed? EXECUTE?_`;
+        if (window.confirm(confirmMessage)) {
+            deleteUser(userToDelete.id, authenticatedUser, true).then(fetchUsers);
         }
     };
 
@@ -496,9 +518,11 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                         title="College Admins (Principals)" 
                         users={principals} 
                         canManage={canManagePrincipals}
+                        authenticatedUser={authenticatedUser}
                         onAdd={() => handleAction('add', null)}
                         onEdit={(user) => handleAction('edit', user)} 
                         onDelete={(user) => handleAction('delete', user)}
+                        onPermanentDelete={handlePermanentDelete}
                         onChangePassword={(user) => setModalState({ type: 'password', user })}
                     />
                 )}
@@ -508,6 +532,7 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                         title="Faculty & HODs" 
                         users={hodsAndFaculty} 
                         canManage={canManageAcademics}
+                        authenticatedUser={authenticatedUser}
                         onAdd={() => handleAction('add', null)}
                         onEdit={(user) => handleAction('edit', user)} 
                         onDelete={(user) => handleAction('delete', user)}
@@ -520,6 +545,7 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                         title="Administrative Staff" 
                         users={staff} 
                         canManage={canManageSupportStaff}
+                        authenticatedUser={authenticatedUser}
                         onAdd={() => handleAction('add', null)}
                         onEdit={(user) => handleAction('edit', user)} 
                         onDelete={(user) => handleAction('delete', user)}
@@ -532,6 +558,7 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                         title="Students"
                         users={students}
                         canManage={canManageStudents}
+                        authenticatedUser={authenticatedUser}
                         onAdd={() => handleAction('add', null)}
                         onEdit={(user) => handleAction('edit', user)}
                         onDelete={(user) => handleAction('delete', user)}
@@ -548,9 +575,10 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                     onSave={handleSaveUser}
                 />
             )}
-            {modalState.type === 'password' && modalState.user && (
+            {modalState.type === 'password' && modalState.user && authenticatedUser && (
                 <ChangePasswordModal
                     user={modalState.user}
+                    currentUser={authenticatedUser}
                     onClose={() => setModalState({ type: null })}
                     onSave={handleSavePassword}
                 />
@@ -563,90 +591,101 @@ const UserTable: React.FC<{
     title: string;
     users: User[];
     canManage: boolean;
+    authenticatedUser: User | null;
     onAdd: () => void;
     onEdit: (user: User) => void;
     onDelete: (user: User) => void;
     onGenerateIdCard?: (user: User) => void;
     onChangePassword?: (user: User) => void;
-}> = ({ title, users, canManage, onAdd, onEdit, onDelete, onGenerateIdCard, onChangePassword }) => (
-     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg terminal-window" data-title={title.replace(/\s/g, '_').toLowerCase()}>
-        <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
-            {canManage && (
-                <button onClick={onAdd} className="font-semibold py-2 px-4 rounded-lg transition-colors bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 flex items-center gap-2">
-                    <PlusIcon className="w-5 h-5" /> Add New
-                </button>
-            )}
-        </div>
-        <div className="overflow-x-auto">
-            <table className="min-w-full">
-                <thead className="border-b border-slate-200 dark:border-slate-700">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Name / Role</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Contact Info</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                    {users.map(user => (
-                        <tr key={user.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${user.access_revoked ? 'opacity-50' : ''}`}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0 h-11 w-11">
-                                        <img className="h-11 w-11 rounded-full object-cover" src={user.imageUrl} alt="" />
-                                    </div>
-                                    <div className="ml-4">
-                                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{user.name}</div>
-                                        <div className="mt-1"><RolePill role={user.role}/></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                                <div className="font-mono">{user.pin}</div>
-                                <div>{user.email}</div>
-                            </td>
-                             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                                {user.access_revoked ? (
-                                    <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300`}>
-                                        Access Revoked
-                                    </span>
-                                ) : (
-                                    <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.email_verified ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'}`}>
-                                        {user.email_verified ? 'Verified' : 'Unverified'}
-                                    </span>
-                                )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                {canManage ? (
-                                    <div className="flex justify-end gap-1">
-                                        {user.role === Role.STUDENT && onGenerateIdCard && (
-                                            <button onClick={() => onGenerateIdCard(user)} title="Generate ID Card" className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><IdCardIcon className="w-5 h-5"/></button>
-                                        )}
-                                        {onChangePassword && (
-                                            <button onClick={() => onChangePassword(user)} title="Change Password" className="text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><KeyIcon className="w-5 h-5"/></button>
-                                        )}
-                                        <button onClick={() => onEdit(user)} className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><EditIcon className="w-5 h-5"/></button>
-                                        {user.role === Role.PRINCIPAL ? (
-                                            user.access_revoked ? (
-                                                 <button onClick={() => onDelete(user)} title="Restore Access" className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><UserPlusIcon className="w-5 h-5"/></button>
-                                            ) : (
-                                                 <button onClick={() => onDelete(user)} title="Revoke Access" className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><UserMinusIcon className="w-5 h-5"/></button>
-                                            )
-                                        ) : (
-                                            <button onClick={() => onDelete(user)} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <span className="text-slate-400 dark:text-slate-500 text-xs italic">No permissions</span>
-                                )}
-                            </td>
+    onPermanentDelete?: (user: User) => void;
+}> = ({ title, users, canManage, onAdd, onEdit, onDelete, onGenerateIdCard, onChangePassword, onPermanentDelete, authenticatedUser }) => {
+    const isSuperAdmin = authenticatedUser?.role === Role.SUPER_ADMIN;
+    
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg terminal-window" data-title={title.replace(/\s/g, '_').toLowerCase()}>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
+                {canManage && (
+                    <button onClick={onAdd} className="font-semibold py-2 px-4 rounded-lg transition-colors bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 flex items-center gap-2">
+                        <PlusIcon className="w-5 h-5" /> {isSuperAdmin ? 'Register Asset' : 'Add New'}
+                    </button>
+                )}
+            </div>
+            <div className="overflow-x-auto">
+                <table className="min-w-full">
+                    <thead className="border-b border-slate-200 dark:border-slate-700">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Name / Role</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Contact Info</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {users.map(user => (
+                            <tr key={user.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${user.access_revoked ? 'asset-terminated opacity-60' : ''}`}>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex items-center">
+                                        <div className="flex-shrink-0 h-11 w-11">
+                                            <img className="h-11 w-11 rounded-full object-cover" src={user.imageUrl} alt="" />
+                                        </div>
+                                        <div className="ml-4">
+                                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{user.name}</div>
+                                            <div className="mt-1"><RolePill role={user.role}/></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+                                    <div className="font-mono">{user.pin}</div>
+                                    <div>{user.email}</div>
+                                </td>
+                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+                                    {user.access_revoked ? (
+                                        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300`}>
+                                            Access Revoked
+                                        </span>
+                                    ) : (
+                                        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.email_verified ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'}`}>
+                                            {user.email_verified ? 'Verified' : 'Unverified'}
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    {canManage ? (
+                                        <div className="flex justify-end gap-1">
+                                            {user.role === Role.STUDENT && onGenerateIdCard && (
+                                                <button onClick={() => onGenerateIdCard(user)} title="Generate ID Card" className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><IdCardIcon className="w-5 h-5"/></button>
+                                            )}
+                                            {onChangePassword && (
+                                                <button onClick={() => onChangePassword(user)} title={isSuperAdmin ? 'Re-Key Asset' : "Change Password"} className="text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><KeyIcon className="w-5 h-5"/></button>
+                                            )}
+                                            <button onClick={() => onEdit(user)} title={isSuperAdmin ? 'Modify Asset' : 'Edit'} className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><EditIcon className="w-5 h-5"/></button>
+                                            {user.role === Role.PRINCIPAL ? (
+                                                user.access_revoked ? (
+                                                    <>
+                                                        <button onClick={() => onDelete(user)} title={isSuperAdmin ? 'Restore Connection' : "Restore Access"} className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><UserPlusIcon className="w-5 h-5"/></button>
+                                                        {onPermanentDelete && (
+                                                            <button onClick={() => onPermanentDelete(user)} title={isSuperAdmin ? 'Purge Asset' : "Permanently Delete"} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                     <button onClick={() => onDelete(user)} title={isSuperAdmin ? 'Terminate Access' : "Revoke Access"} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><UserMinusIcon className="w-5 h-5"/></button>
+                                                )
+                                            ) : (
+                                                <button onClick={() => onDelete(user)} title={isSuperAdmin ? 'Purge Asset' : 'Delete'} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-slate-400 dark:text-slate-500 text-xs italic">No permissions</span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-);
+    )
+};
 
 export default ManageUsersPage;

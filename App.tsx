@@ -36,6 +36,7 @@ interface AppContextType {
   dashboardStats: { presentToday: number; absentToday: number; attendancePercentage: number; };
   refreshDashboardStats: () => Promise<void>;
   isAiAvailable: boolean;
+  setShowLogoutConfirm: (show: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -55,6 +56,7 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [page, setPage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [dashboardStats, setDashboardStats] = useState({ presentToday: 0, absentToday: 0, attendancePercentage: 0 });
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const isAiAvailable = cogniCraftService.getClientStatus().isInitialized;
 
@@ -100,20 +102,73 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const toggleTheme = () => setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   const logout = () => {
+    setShowLogoutConfirm(false);
     setUser(null);
     setPage('Dashboard');
   };
 
   const value = useMemo(() => ({
-    theme, toggleTheme, user, setUser, logout, facultyList, page, setPage, isSidebarOpen, setSidebarOpen, dashboardStats, refreshDashboardStats, isAiAvailable
+    theme, toggleTheme, user, setUser, logout, facultyList, page, setPage, isSidebarOpen, setSidebarOpen, dashboardStats, refreshDashboardStats, isAiAvailable, setShowLogoutConfirm
   }), [theme, user, facultyList, page, isSidebarOpen, dashboardStats, refreshDashboardStats, isAiAvailable]);
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+        {children}
+        {user && (
+            <LogoutConfirmationModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={logout}
+                userName={user.name}
+            />
+        )}
+    </AppContext.Provider>
+    );
 };
+
+// --- CUSTOM MODAL ---
+const LogoutConfirmationModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  userName?: string;
+}> = ({ isOpen, onClose, onConfirm, userName }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in" onClick={onClose} aria-modal="true" role="dialog">
+      <div 
+        className="bg-white dark:bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-sm m-4 animate-scale-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 text-center">
+          <Icons.logout className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Are you sure you want to log out?</h3>
+          {userName && <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Log out of MIRA as <strong>{userName}</strong>?</p>}
+        </div>
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 grid grid-cols-2 gap-3 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-lg hover:shadow-red-600/40"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 // --- LAYOUT COMPONENTS ---
 const Sidebar: React.FC = () => {
-    const { page, setPage, logout, isSidebarOpen, setSidebarOpen, user, isAiAvailable } = useAppContext();
+    const { page, setPage, logout, isSidebarOpen, setSidebarOpen, user, isAiAvailable, setShowLogoutConfirm } = useAppContext();
 
     return (
         <>
@@ -163,7 +218,7 @@ const Sidebar: React.FC = () => {
                     })}
                 </nav>
                 <div className="p-4 border-t border-slate-200 dark:border-slate-700">
-                    <button onClick={logout} className="w-full flex items-center px-4 py-2 text-base rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors duration-200">
+                    <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center px-4 py-2 text-base rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors duration-200">
                         <Icons.logout className="h-5 w-5 mr-3" />
                         <span>Logout</span>
                     </button>

@@ -590,14 +590,14 @@ export const updateUser = async (id: string, userData: User, currentUser: User):
     return delay(updatedUser);
 };
 
-export const deleteUser = async (id: string, currentUser: User): Promise<{ success: boolean }> => {
+export const deleteUser = async (id: string, currentUser: User, forceHardDelete = false): Promise<{ success: boolean }> => {
     let users = storage.getItem<User[]>('MOCK_USERS') || [];
     const initialLength = users.length;
     const userToDelete = users.find(u => u.id === id);
     if (!userToDelete) return { success: false };
 
-    // Super Admin managing a Principal -> Soft delete (toggle access)
-    if (currentUser.role === Role.SUPER_ADMIN && userToDelete.role === Role.PRINCIPAL) {
+    // Super Admin managing a Principal -> Soft delete (toggle access) unless forced
+    if (currentUser.role === Role.SUPER_ADMIN && userToDelete.role === Role.PRINCIPAL && !forceHardDelete) {
         let success = false;
         users = users.map(u => {
             if (u.id === id) {

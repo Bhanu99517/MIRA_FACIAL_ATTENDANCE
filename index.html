@@ -236,6 +236,22 @@
         backdrop-filter: blur(5px) saturate(1.2) !important;
       }
 
+      /* Style for revoked/terminated users in hacker theme */
+      .super-admin-hacker-theme .asset-terminated .text-slate-900,
+      .super-admin-hacker-theme .asset-terminated .dark\:text-slate-100 {
+        text-decoration: line-through;
+        text-decoration-color: #ff3914; /* A glitchy red */
+        color: #ff3914 !important;
+        animation: text-glitch-revoked 0.5s infinite;
+      }
+
+      @keyframes text-glitch-revoked {
+        0% { text-shadow: 0 0 2px #ff3914, -1px 1px 0px rgba(0, 255, 0, 0.5); }
+        25% { text-shadow: 1px -1px 0px rgba(255, 0, 0, 0.75); }
+        50% { text-shadow: 0 0 2px #ff3914, 1px -1px 0px rgba(0, 0, 255, 0.5); }
+        100% { text-shadow: 0 0 2px #ff3914; }
+      }
+
       /* Hacker Logo Style Overrides */
       .super-admin-hacker-theme .mira-logo-primary,
       .super-admin-hacker-theme .mira-logo-accent {
