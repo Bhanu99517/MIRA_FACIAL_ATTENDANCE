@@ -1,10 +1,9 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, addUser, updateUser, deleteUser } from '../services';
 import type { User } from '../types';
 import { Role } from '../types';
-import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon, KeyIcon, UserMinusIcon, UserPlusIcon } from './Icons';
+import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon, KeyIcon, LockClosedIcon, LockOpenIcon } from './Icons';
 import { RolePill } from '../components';
 
 const createAvatar = (seed: string) => `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(seed)}`;
@@ -412,10 +411,65 @@ const ChangePasswordModal: React.FC<{
     );
 };
 
+const AccessConfirmationModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    user: User | null;
+    action: 'revoke' | 'restore';
+}> = ({ isOpen, onClose, onConfirm, user, action }) => {
+    if (!isOpen || !user) return null;
+
+    const isRevoking = action === 'revoke';
+    const title = isRevoking ? 'Are you sure you want to block?' : 'Are you sure you want to restore access?';
+    const confirmButtonText = isRevoking ? 'Block Access' : 'Restore Access';
+    const confirmButtonClasses = isRevoking 
+        ? "w-full py-2.5 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-lg hover:shadow-red-600/40"
+        : "w-full py-2.5 rounded-lg text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors shadow-lg hover:shadow-green-600/40";
+
+    const userName = user.name;
+
+    return (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in" onClick={onClose} aria-modal="true" role="dialog">
+            <div 
+                className="bg-white dark:bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-sm m-4 animate-scale-in"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-6 text-center">
+                    {isRevoking ? (
+                        <LockClosedIcon className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+                    ) : (
+                        <LockOpenIcon className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                    )}
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                        This action will affect <strong className="dark:text-slate-200">{userName}</strong>.
+                    </p>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 grid grid-cols-2 gap-3 rounded-b-2xl">
+                    <button
+                        onClick={onClose}
+                        className="w-full py-2.5 rounded-lg text-sm font-semibold bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className={confirmButtonClasses}
+                    >
+                        {confirmButtonText}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedUser }) => {
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [modalState, setModalState] = useState<{ type: 'form' | 'password' | null, user?: User | null }>({ type: null });
+    const [confirmAccessState, setConfirmAccessState] = useState<{ isOpen: boolean; user: User | null; action: 'revoke' | 'restore' }>({ isOpen: false, user: null, action: 'revoke' });
     
     const fetchUsers = () => {
         if (authenticatedUser) {
@@ -453,32 +507,36 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
     
     const isSuperAdmin = authenticatedUser?.role === Role.SUPER_ADMIN;
 
-    const handleAction = (action: 'add' | 'edit' | 'delete', userToManage: User | null) => {
-        if (action === 'delete' && userToManage && authenticatedUser) {
-            if (authenticatedUser.role === Role.SUPER_ADMIN && userToManage.role === Role.PRINCIPAL) {
-                 const actionText = userToManage.access_revoked ? '>> RESTORE_CONNECTION PROTOCOL :: FOR' : '>> INITIATE ACCESS_TERMINATION :: FOR';
-                 const promptText = `${actionText} ${userToManage.name} (ASSET_ID: ${userToManage.pin})? EXECUTE?_`;
-                 if (window.confirm(promptText)) {
-                    deleteUser(userToManage.id, authenticatedUser).then(fetchUsers);
-                }
-            } else {
-                 const promptText = isSuperAdmin 
-                    ? `>> PURGE_ASSET PROTOCOL :: This will permanently erase asset ${userToManage.name}. This action cannot be undone. CONFIRM?_`
-                    : `Are you sure you want to delete ${userToManage.name}? This action cannot be undone.`;
-                if (window.confirm(promptText)) {
-                    deleteUser(userToManage.id, authenticatedUser).then(fetchUsers);
-                }
-            }
-        } else {
-            setModalState({ type: 'form', user: userToManage });
-        }
+    const handleToggleAccess = (userToToggle: User) => {
+        if (!authenticatedUser || authenticatedUser.role !== Role.SUPER_ADMIN) return;
+        setConfirmAccessState({
+            isOpen: true,
+            user: userToToggle,
+            action: userToToggle.access_revoked ? 'restore' : 'revoke'
+        });
     };
     
-    const handlePermanentDelete = (userToDelete: User) => {
+    const handleConfirmToggleAccess = () => {
+        if (!confirmAccessState.user || !authenticatedUser) return;
+        
+        deleteUser(confirmAccessState.user.id, authenticatedUser).then(() => {
+            fetchUsers();
+            setConfirmAccessState({ isOpen: false, user: null, action: 'revoke' });
+        });
+    };
+    
+    const handleDeleteUser = (userToDelete: User) => {
         if (!authenticatedUser) return;
-        const confirmMessage = `>> PERMANENT DELETION PROTOCOL :: This will remove all data associated with asset ${userToDelete.name} and cannot be undone. Are you sure you wish to proceed? EXECUTE?_`;
+        
+        const isPrincipal = userToDelete.role === Role.PRINCIPAL;
+        const isHardDelete = isPrincipal; // For principals, this button is for permanent deletion.
+        
+        const confirmMessage = isSuperAdmin
+            ? `>> PERMANENT DELETION PROTOCOL :: This will remove all data associated with asset ${userToDelete.name} and cannot be undone. Are you sure you wish to proceed? EXECUTE?_`
+            : `Are you sure you want to permanently delete ${userToDelete.name}? This action cannot be undone.`;
+
         if (window.confirm(confirmMessage)) {
-            deleteUser(userToDelete.id, authenticatedUser, true).then(fetchUsers);
+            deleteUser(userToDelete.id, authenticatedUser, isHardDelete).then(fetchUsers);
         }
     };
 
@@ -519,10 +577,10 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                         users={principals} 
                         canManage={canManagePrincipals}
                         authenticatedUser={authenticatedUser}
-                        onAdd={() => handleAction('add', null)}
-                        onEdit={(user) => handleAction('edit', user)} 
-                        onDelete={(user) => handleAction('delete', user)}
-                        onPermanentDelete={handlePermanentDelete}
+                        onAdd={() => setModalState({ type: 'form', user: null })}
+                        onEdit={(user) => setModalState({ type: 'form', user })} 
+                        onDelete={handleDeleteUser}
+                        onToggleAccess={handleToggleAccess}
                         onChangePassword={(user) => setModalState({ type: 'password', user })}
                     />
                 )}
@@ -533,9 +591,9 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                         users={hodsAndFaculty} 
                         canManage={canManageAcademics}
                         authenticatedUser={authenticatedUser}
-                        onAdd={() => handleAction('add', null)}
-                        onEdit={(user) => handleAction('edit', user)} 
-                        onDelete={(user) => handleAction('delete', user)}
+                        onAdd={() => setModalState({ type: 'form', user: null })}
+                        onEdit={(user) => setModalState({ type: 'form', user })} 
+                        onDelete={handleDeleteUser}
                         onChangePassword={(user) => setModalState({ type: 'password', user })} 
                     />
                 )}
@@ -546,9 +604,9 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                         users={staff} 
                         canManage={canManageSupportStaff}
                         authenticatedUser={authenticatedUser}
-                        onAdd={() => handleAction('add', null)}
-                        onEdit={(user) => handleAction('edit', user)} 
-                        onDelete={(user) => handleAction('delete', user)}
+                        onAdd={() => setModalState({ type: 'form', user: null })}
+                        onEdit={(user) => setModalState({ type: 'form', user })} 
+                        onDelete={handleDeleteUser}
                         onChangePassword={(user) => setModalState({ type: 'password', user })} 
                     />
                 )}
@@ -559,9 +617,9 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                         users={students}
                         canManage={canManageStudents}
                         authenticatedUser={authenticatedUser}
-                        onAdd={() => handleAction('add', null)}
-                        onEdit={(user) => handleAction('edit', user)}
-                        onDelete={(user) => handleAction('delete', user)}
+                        onAdd={() => setModalState({ type: 'form', user: null })}
+                        onEdit={(user) => setModalState({ type: 'form', user })}
+                        onDelete={handleDeleteUser}
                         onGenerateIdCard={handleGenerateIdCard}
                     />
                 )}
@@ -583,6 +641,15 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
                     onSave={handleSavePassword}
                 />
             )}
+            {confirmAccessState.isOpen && (
+                <AccessConfirmationModal
+                    isOpen={confirmAccessState.isOpen}
+                    onClose={() => setConfirmAccessState({ isOpen: false, user: null, action: 'revoke' })}
+                    onConfirm={handleConfirmToggleAccess}
+                    user={confirmAccessState.user}
+                    action={confirmAccessState.action}
+                />
+            )}
         </div>
     );
 };
@@ -597,8 +664,8 @@ const UserTable: React.FC<{
     onDelete: (user: User) => void;
     onGenerateIdCard?: (user: User) => void;
     onChangePassword?: (user: User) => void;
-    onPermanentDelete?: (user: User) => void;
-}> = ({ title, users, canManage, onAdd, onEdit, onDelete, onGenerateIdCard, onChangePassword, onPermanentDelete, authenticatedUser }) => {
+    onToggleAccess?: (user: User) => void;
+}> = ({ title, users, canManage, onAdd, onEdit, onDelete, onGenerateIdCard, onChangePassword, onToggleAccess, authenticatedUser }) => {
     const isSuperAdmin = authenticatedUser?.role === Role.SUPER_ADMIN;
     
     return (
@@ -660,19 +727,22 @@ const UserTable: React.FC<{
                                                 <button onClick={() => onChangePassword(user)} title={isSuperAdmin ? 'Re-Key Asset' : "Change Password"} className="text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><KeyIcon className="w-5 h-5"/></button>
                                             )}
                                             <button onClick={() => onEdit(user)} title={isSuperAdmin ? 'Modify Asset' : 'Edit'} className="text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><EditIcon className="w-5 h-5"/></button>
-                                            {user.role === Role.PRINCIPAL ? (
-                                                user.access_revoked ? (
-                                                    <>
-                                                        <button onClick={() => onDelete(user)} title={isSuperAdmin ? 'Restore Connection' : "Restore Access"} className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><UserPlusIcon className="w-5 h-5"/></button>
-                                                        {onPermanentDelete && (
-                                                            <button onClick={() => onPermanentDelete(user)} title={isSuperAdmin ? 'Purge Asset' : "Permanently Delete"} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                     <button onClick={() => onDelete(user)} title={isSuperAdmin ? 'Terminate Access' : "Revoke Access"} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><UserMinusIcon className="w-5 h-5"/></button>
-                                                )
-                                            ) : (
-                                                <button onClick={() => onDelete(user)} title={isSuperAdmin ? 'Purge Asset' : 'Delete'} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><DeleteIcon className="w-5 h-5"/></button>
+                                            
+                                            {user.role === Role.PRINCIPAL && onToggleAccess ? (
+                                                <>
+                                                    <button onClick={() => onToggleAccess(user)} title={user.access_revoked ? 'Restore Access' : 'Revoke Access'} className="text-slate-500 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                        {user.access_revoked ? <LockOpenIcon className="w-5 h-5"/> : <LockClosedIcon className="w-5 h-5"/>}
+                                                    </button>
+                                                    {user.access_revoked && (
+                                                        <button onClick={() => onDelete(user)} title="Permanently Delete" className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                            <DeleteIcon className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : ( user.role !== Role.PRINCIPAL &&
+                                                <button onClick={() => onDelete(user)} title={isSuperAdmin ? 'Purge Asset' : 'Delete'} className="text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                    <DeleteIcon className="w-5 h-5"/>
+                                                </button>
                                             )}
                                         </div>
                                     ) : (
