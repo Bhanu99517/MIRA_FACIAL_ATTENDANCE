@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { User, AppSettings } from '../types';
 import { getSettings, updateSettings, updateUser, cogniCraftService } from '../services';
 import { Icons } from '../constants';
+import { Role } from '../types';
+import { useAppContext } from '../App';
 
 const SettingsSection: React.FC<{ title: string; description: string; children: React.ReactNode }> = ({ title, description, children }) => (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
@@ -23,19 +25,24 @@ const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabl
     </div>
 );
 
-const SettingsPage: React.FC<{ user: User; theme: 'light' | 'dark'; toggleTheme: () => void; }> = ({ user, theme, toggleTheme }) => {
+const SettingsPage: React.FC = () => {
+    const { user, theme, toggleTheme, setShowLogoutConfirm } = useAppContext();
     const [settings, setSettings] = useState<AppSettings | null>(null);
-    const [profile, setProfile] = useState({ name: user.name, email: user.email || '' });
+    const [profile, setProfile] = useState({ name: user!.name, email: user!.email || '' });
     const [apiStatus, setApiStatus] = useState<{ isInitialized: boolean; error: string | null; }>({ isInitialized: false, error: null });
     
     useEffect(() => {
-        getSettings(user.id).then(setSettings);
-        setApiStatus(cogniCraftService.getClientStatus());
-    }, [user.id]);
+        if (user) {
+            getSettings(user.id).then(setSettings);
+            setApiStatus(cogniCraftService.getClientStatus());
+        }
+    }, [user]);
     
     const handleSettingsChange = async (newSettings: AppSettings) => {
-        setSettings(newSettings);
-        await updateSettings(user.id, newSettings);
+        if (user) {
+            setSettings(newSettings);
+            await updateSettings(user.id, newSettings);
+        }
     };
 
     const handleProfileChange = (field: 'name' | 'email', value: string) => {
@@ -43,12 +50,13 @@ const SettingsPage: React.FC<{ user: User; theme: 'light' | 'dark'; toggleTheme:
     };
 
     const handleProfileSave = async () => {
-        // FIX: Pass the current 'user' object as the third argument as required by the updateUser service.
-        await updateUser(user.id, { ...user, name: profile.name, email: profile.email }, user);
-        alert("Profile updated successfully! (Note: a page refresh might be needed to see changes in the header)");
+        if (user) {
+            await updateUser(user.id, { ...user, name: profile.name, email: profile.email }, user);
+            alert("Profile updated successfully! (Note: a page refresh might be needed to see changes in the header)");
+        }
     };
 
-    if (!settings) {
+    if (!settings || !user) {
         return <div>Loading settings...</div>;
     }
 
@@ -77,25 +85,27 @@ const SettingsPage: React.FC<{ user: User; theme: 'light' | 'dark'; toggleTheme:
                         </div>
                     </SettingsSection>
                     
-                    <SettingsSection title="Appearance" description="Customize the look and feel of the application.">
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Theme</span>
-                            <div className="flex items-center gap-1 rounded-lg bg-slate-200 dark:bg-slate-700 p-1">
-                                <button
-                                    onClick={() => { if (theme === 'dark') toggleTheme(); }}
-                                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 ${theme === 'light' ? 'bg-white dark:bg-slate-600 shadow' : 'text-slate-600 dark:text-slate-300'}`}
-                                >
-                                    <Icons.sun className="w-4 h-4" /> Light
-                                </button>
-                                <button
-                                    onClick={() => { if (theme === 'light') toggleTheme(); }}
-                                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 ${theme === 'dark' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 dark:text-slate-300'}`}
-                                >
-                                    <Icons.moon className="w-4 h-4" /> Dark
-                                </button>
+                    {user.role !== Role.SUPER_ADMIN && (
+                        <SettingsSection title="Appearance" description="Customize the look and feel of the application.">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Theme</span>
+                                <div className="flex items-center gap-1 rounded-lg bg-slate-200 dark:bg-slate-700 p-1">
+                                    <button
+                                        onClick={() => { if (theme === 'dark') toggleTheme(); }}
+                                        className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 ${theme === 'light' ? 'bg-white dark:bg-slate-600 shadow' : 'text-slate-600 dark:text-slate-300'}`}
+                                    >
+                                        <Icons.sun className="w-4 h-4" /> Light
+                                    </button>
+                                    <button
+                                        onClick={() => { if (theme === 'light') toggleTheme(); }}
+                                        className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 ${theme === 'dark' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 dark:text-slate-300'}`}
+                                    >
+                                        <Icons.moon className="w-4 h-4" /> Dark
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    </SettingsSection>
+                        </SettingsSection>
+                    )}
                     
                      <SettingsSection title="Notification Preferences" description="Choose how you want to be notified.">
                         <h3 className="text-md font-semibold text-slate-800 dark:text-slate-100 border-b dark:border-slate-700 pb-2">Email Notifications</h3>
@@ -107,9 +117,14 @@ const SettingsPage: React.FC<{ user: User; theme: 'light' | 'dark'; toggleTheme:
                     </SettingsSection>
                 </div>
                 <div className="space-y-8">
-                     <SettingsSection title="Account" description="Manage your account data and privacy.">
+                     <SettingsSection title="Account Actions" description="Manage your account, privacy, and session.">
                          <ToggleSwitch label="Make Profile Private" enabled={settings.profile_private} onChange={(e) => handleSettingsChange({ ...settings, profile_private: e })}/>
                          <button onClick={() => alert("Simulating data export... your data would be compiled and emailed to you.")} className="w-full text-left font-medium text-sm text-slate-700 dark:text-slate-200 hover:text-primary-600 dark:hover:text-primary-400">Export My Data</button>
+                         {user.role === Role.SUPER_ADMIN && (
+                            <button onClick={() => setShowLogoutConfirm(true)} className="w-full text-left font-medium text-sm text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300">
+                                Logout
+                            </button>
+                         )}
                          <button onClick={() => alert("This is a critical action. In a real app, this would require password confirmation before deleting your account.")} className="w-full text-left font-medium text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">Delete My Account</button>
                     </SettingsSection>
                     <SettingsSection title="CogniCraft AI Status" description="Status of the connection to the CogniCraft AI service.">

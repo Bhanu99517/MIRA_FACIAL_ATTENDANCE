@@ -134,8 +134,8 @@ if (storage.getItem<User[]>('MOCK_USERS')?.length) {
     MOCK_USERS = [
         {
             id: 'super_00',
-            pin: 'BHANU-00',
-            name: 'BHANU',
+            pin: 'NANIBHANU-00',
+            name: 'NANI_BHANU',
             role: Role.SUPER_ADMIN,
             branch: 'SYSTEM',
             email: `bhanu99517@gmail.com`,
@@ -282,12 +282,10 @@ const generateInitialData = () => {
         const getGradePoint = (marks: number): number => {
             const passingMark = 35;
             if (marks < passingMark) return 0;
-            if (marks >= 90) return 10;
-            if (marks >= 80) return 9;
-            if (marks >= 70) return 8;
-            if (marks >= 60) return 7;
-            if (marks >= 50) return 6;
-            if (marks >= passingMark) return 5;
+            if (marks >= 80) return 10;
+            if (marks >= 70) return 9;
+            if (marks >= 60) return 8;
+            if (marks >= passingMark) return 6;
             return 0;
         };
 
@@ -391,7 +389,7 @@ export const login = async (pin: string, pass: string): Promise<User | { otpRequ
         return delay(null);
     }
 
-    if (user && user.pin === 'BHANU-00' && user.role === Role.SUPER_ADMIN) {
+    if (user && user.role === Role.SUPER_ADMIN) {
         return delay({ otpRequired: true, user: user });
     }
     

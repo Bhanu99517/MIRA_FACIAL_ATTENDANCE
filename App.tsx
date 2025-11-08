@@ -61,20 +61,25 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAiAvailable = cogniCraftService.getClientStatus().isInitialized;
 
   const refreshDashboardStats = useCallback(async () => {
-    if (user) {
+    if (user && user.role !== Role.SUPER_ADMIN) {
         const stats = await getDashboardStats(user);
         setDashboardStats(stats);
     }
   }, [user]);
 
   useEffect(() => {
+    if (user?.role === Role.SUPER_ADMIN) {
+      document.documentElement.classList.remove('dark');
+      localStorage.removeItem('theme');
+      return;
+    }
     localStorage.setItem('theme', theme);
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [theme]);
+  }, [theme, user]);
 
   useEffect(() => {
     if (user?.role === Role.SUPER_ADMIN) {
@@ -90,15 +95,15 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     if (user) {
+      if (user.role === Role.SUPER_ADMIN) {
+        setPage('ManageUsers');
+      } else {
+        setPage('Dashboard');
+        refreshDashboardStats();
+      }
       getFaculty(user).then(setFacultyList);
     }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      refreshDashboardStats();
-    }
-  }, [user, refreshDashboardStats]);
+  }, [user, refreshDashboardStats, setPage]);
 
   const toggleTheme = () => setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   const logout = () => {
@@ -168,7 +173,20 @@ const LogoutConfirmationModal: React.FC<{
 
 // --- LAYOUT COMPONENTS ---
 const Sidebar: React.FC = () => {
-    const { page, setPage, logout, isSidebarOpen, setSidebarOpen, user, isAiAvailable, setShowLogoutConfirm } = useAppContext();
+    const { page, setPage, isSidebarOpen, setSidebarOpen, user, isAiAvailable, setShowLogoutConfirm } = useAppContext();
+
+    const superAdminNavLinks: typeof navLinks = [
+      {
+        title: 'System',
+        links: [
+          { name: 'ManageUsers', icon: Icons.users },
+          { name: 'Settings', icon: Icons.settings },
+        ],
+      }
+    ];
+
+    const linksToRender = user?.role === Role.SUPER_ADMIN ? superAdminNavLinks : navLinks;
+
 
     return (
         <>
@@ -183,17 +201,14 @@ const Sidebar: React.FC = () => {
                     </button>
                 </div>
                 <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto sidebar-scroll">
-                    {navLinks.map((section) => {
-                        if (section.title === 'Academics' && (user?.role === Role.STAFF || user?.role === Role.SUPER_ADMIN)) {
+                    {linksToRender.map((section) => {
+                        if (user?.role !== Role.SUPER_ADMIN && section.title === 'Academics' && (user?.role === Role.STAFF)) {
                             return null;
                         }
                         return (
                         <div key={section.title}>
                             <h3 className="px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{section.title}</h3>
                             {section.links.map((link) => {
-                                if (user?.role === Role.SUPER_ADMIN && (link.name === 'Reports' || link.name === 'AttendanceLog')) {
-                                    return null;
-                                }
                                 const isAiLink = link.name === 'CogniCraft AI';
                                 const isDisabled = isAiLink && !isAiAvailable;
 
@@ -455,7 +470,7 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
 
 
 const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = ({ refreshDashboardStats }) => {
-    const { page, user, setPage, isAiAvailable, theme, toggleTheme } = useAppContext();
+    const { page, user, setPage, isAiAvailable } = useAppContext();
 
     useEffect(() => {
         if (page === 'CogniCraft AI' && !isAiAvailable) {
@@ -481,7 +496,7 @@ const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = (
         case 'Syllabus': return <SyllabusPage user={user} />;
         case 'Timetables': return <TimetablesPage user={user} />;
         case 'Feedback': return <FeedbackPage user={user} />;
-        case 'Settings': return <SettingsPage user={user} theme={theme} toggleTheme={toggleTheme} />;
+        case 'Settings': return <SettingsPage />;
         default: return <PlaceholderPage title={page} />;
     }
 };
