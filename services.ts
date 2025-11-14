@@ -1,4 +1,5 @@
-import { User, Role, Branch, AttendanceRecord, Application, PPTContent, QuizContent, LessonPlanContent, ApplicationStatus, ApplicationType, SBTETResult, SyllabusCoverage, Timetable, Feedback, AppSettings } from './types';
+
+import { User, Role, Branch, AttendanceRecord, Application, PPTContent, QuizContent, LessonPlanContent, ApplicationStatus, ApplicationType, SBTETResult, SyllabusCoverage, Timetable, Feedback, AppSettings, ResearchContent } from './types';
 import { aiClientState } from './geminiClient';
 // FIX: Import the 'Type' enum from the genai library instead of using a mock.
 import { Type } from '@google/genai';
@@ -404,11 +405,16 @@ export const sendLoginOtp = async (user: User): Promise<{ success: boolean }> =>
     const subject = 'Your Mira Attendance Login OTP';
     const body = `Hello ${user.name},\n\nYour One-Time Password (OTP) for logging into Mira Attendance is: ${otp}\n\nThis OTP is valid for 5 minutes.\n\nRegards,\nMira Attendance System`;
 
-    console.log(`--- SIMULATING OTP EMAIL ---`, { to: email, subject, body });
-    // In a real app, this would not be returned to the client.
-    await sendEmail(email, subject, body);
+    console.log(`--- SENDING OTP VIA BACKEND ---`, { to: email, subject, body });
+    // This now calls the function that will communicate with our backend server.
+    const result = await sendEmail(email, subject, body);
+    
+    if (!result.success) {
+        console.error("Failed to send OTP email via backend.");
+    }
+
     // OTP is not returned to client for security.
-    return { success: true };
+    return { success: result.success };
 };
 
 export const verifyLoginOtp = async (userId: string, otp: string): Promise<User | null> => {
@@ -422,10 +428,39 @@ export const verifyLoginOtp = async (userId: string, otp: string): Promise<User 
 };
 
 export const sendEmail = async (to: string, subject: string, body: string): Promise<{ success: boolean }> => {
-    console.log("--- SIMULATING EMAIL ---", { to, subject, body });
-    await new Promise(res => setTimeout(res, 500));
-    if (to && to.includes('@')) return { success: true };
-    throw new Error("Invalid email address provided for simulated sending.");
+    // This function sends a request to our backend server to dispatch a real email.
+    // Using a relative URL ensures this will work in a deployed environment
+    // where the frontend and backend are served from the same domain.
+    const backendUrl = '/api/send-email';
+
+    try {
+        const response = await fetch(backendUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ to, subject, body }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Backend failed to send email:", errorData.message);
+            // We return { success: false } to avoid crashing the frontend UI.
+            // The error is logged for debugging.
+            return { success: false };
+        }
+
+        const result = await response.json();
+        return { success: result.success };
+
+    } catch (error) {
+        console.error("--- NETWORK ERROR ---");
+        console.error("Failed to connect to the backend server at", backendUrl);
+        console.error("Is the backend server running? Run 'npm install' and 'npm start' in the 'backend' directory.");
+        console.error(error);
+        // If the backend isn't running or there's a network issue, we'll fail gracefully.
+        return { success: false };
+    }
 };
   
 export const getStudentByPin = async (pin: string, currentUser: User | null): Promise<User | null> => {
@@ -727,7 +762,7 @@ export const updateSyllabusCoverage = async (id: string, updates: { topicsComple
     if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code) {
         const coverageCollege = map.get(coverageToUpdate?.facultyId || '');
         if (coverageCollege !== currentUser.college_code) {
-            throw new Error("Permission denied.");
+             throw new Error("Permission denied.");
         }
     }
     
@@ -852,7 +887,7 @@ export const cogniCraftService = {
     error: aiClientState.initializationError 
   }),
   
-  _generateContent: async (contents: any, config?: any): Promise<any> => {
+  _generateContent: async (model: string, contents: any, config?: any): Promise<any> => {
     if (!aiClientState.isInitialized || !aiClientState.client) {
       throw new Error(aiClientState.initializationError || "CogniCraft AI client is not initialized.");
     }
@@ -860,7 +895,7 @@ export const cogniCraftService = {
       // FIX: The error "Property 'models' does not exist on type 'never'" occurs here.
       // It is resolved by fixing `geminiClient.ts` to provide a valid client object.
       const response = await aiClientState.client.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: model,
         contents,
         config,
       });
@@ -872,22 +907,22 @@ export const cogniCraftService = {
   },
 
   summarizeNotes: async (notes: string) => {
-    const response = await cogniCraftService._generateContent(`Summarize the following notes into concise bullet points:\n\n${notes}`);
+    const response = await cogniCraftService._generateContent('gemini-2.5-flash', `Summarize the following notes into concise bullet points:\n\n${notes}`);
     return response.text;
   },
 
   generateQuestions: async (topic: string) => {
-    const response = await cogniCraftService._generateContent(`Generate 5 likely exam questions (a mix of short and long answer) based on the following topic: ${topic}`);
+    const response = await cogniCraftService._generateContent('gemini-2.5-flash', `Generate 5 likely exam questions (a mix of short and long answer) based on the following topic: ${topic}`);
     return response.text;
   },
   
   createStory: async (notes: string) => {
-    const response = await cogniCraftService._generateContent(`Convert the following academic notes into an engaging, story-style summary suitable for explaining the concept to a beginner:\n\n${notes}`);
+    const response = await cogniCraftService._generateContent('gemini-2.5-flash', `Convert the following academic notes into an engaging, story-style summary suitable for explaining the concept to a beginner:\n\n${notes}`);
     return response.text;
   },
 
   createMindMap: async (topic: string) => {
-    const response = await cogniCraftService._generateContent(`Create a text-based mind map for the topic "${topic}". Use indentation to show hierarchy. Start with the central topic and branch out to main ideas, then sub-points.`);
+    const response = await cogniCraftService._generateContent('gemini-2.5-flash', `Create a text-based mind map for the topic "${topic}". Use indentation to show hierarchy. Start with the central topic and branch out to main ideas, then sub-points.`);
     return response.text;
   },
 
@@ -916,7 +951,7 @@ export const cogniCraftService = {
       },
       required: ["title", "slides"]
     };
-    const response = await cogniCraftService._generateContent(`Convert the following notes into a structured presentation format. Create a main title and at least 3 slides with titles and bullet points:\n\n${notes}`, { responseMimeType: "application/json", responseSchema: schema });
+    const response = await cogniCraftService._generateContent('gemini-2.5-flash', `Convert the following notes into a structured presentation format. Create a main title and at least 3 slides with titles and bullet points:\n\n${notes}`, { responseMimeType: "application/json", responseSchema: schema });
     return JSON.parse(response.text);
   },
 
@@ -941,7 +976,7 @@ export const cogniCraftService = {
           },
           required: ["title", "questions"]
       };
-      const response = await cogniCraftService._generateContent(`Create a quiz with 5 questions (mix of multiple-choice and short-answer) on the topic: ${topic}. For multiple choice, provide 4 options.`, { responseMimeType: "application/json", responseSchema: schema });
+      const response = await cogniCraftService._generateContent('gemini-2.5-flash', `Create a quiz with 5 questions (mix of multiple-choice and short-answer) on the topic: ${topic}. For multiple choice, provide 4 options.`, { responseMimeType: "application/json", responseSchema: schema });
       return JSON.parse(response.text);
   },
   
@@ -974,18 +1009,16 @@ export const cogniCraftService = {
         },
         required: ["title", "topic", "duration", "objectives", "activities", "assessment"]
     };
-    const response = await cogniCraftService._generateContent(`Create a detailed lesson plan for the topic: "${topic}". The lesson should be structured with clear objectives, a sequence of activities with time allocations, and an assessment method.`, { responseMimeType: "application/json", responseSchema: schema });
+    const response = await cogniCraftService._generateContent('gemini-2.5-flash', `Create a detailed lesson plan for the topic: "${topic}". The lesson should be structured with clear objectives, a sequence of activities with time allocations, and an assessment method.`, { responseMimeType: "application/json", responseSchema: schema });
     return JSON.parse(response.text);
   },
 
   explainConcept: async (concept: string) => {
-    const response = await cogniCraftService._generateContent(`Explain the following concept in simple terms, as if explaining it to a high school student (ELI5 style):\n\n${concept}`);
+    const response = await cogniCraftService._generateContent('gemini-2.5-flash', `Explain the following concept in simple terms, as if explaining it to a high school student (ELI5 style):\n\n${concept}`);
     return response.text;
   },
 
   verifyFace: async (referenceImageUrl: string, liveImageUrl: string): Promise<VerificationResult> => {
-    // FIX: Re-implemented face verification to use the live AI service instead of a mock.
-    // This function now uses the CogniCraft AI service to perform face verification.
     if (!aiClientState.isInitialized) {
         console.warn("MOCK: Skipping AI face verification (client not initialized). Returning success by default.");
         return { isMatch: true, quality: 'GOOD', reason: 'OK (Mocked Verification - AI Not Initialized)' };
@@ -1025,6 +1058,7 @@ Example: { "quality": "GOOD", "isMatch": true, "reason": "OK" }`;
         };
 
         const response = await cogniCraftService._generateContent(
+          'gemini-2.5-flash',
           { parts: [ { text: prompt }, referenceImagePart, liveImagePart ] }, 
           { responseMimeType: "application/json", responseSchema: schema }
         );
@@ -1035,8 +1069,94 @@ Example: { "quality": "GOOD", "isMatch": true, "reason": "OK" }`;
 
     } catch (error) {
         console.error("AI Face Verification failed:", error);
-        // Fallback to mock success on API error to avoid blocking attendance, preserving original behavior.
         return { isMatch: true, quality: 'GOOD', reason: `OK (Mocked Verification - AI Error: ${error instanceof Error ? error.message : 'Unknown'})` };
     }
+  },
+
+  quickAnswer: async (prompt: string) => {
+    const response = await cogniCraftService._generateContent('gemini-flash-lite-latest', prompt);
+    return response.text;
+  },
+
+  complexQuery: async (prompt: string) => {
+      const response = await cogniCraftService._generateContent('gemini-2.5-pro', prompt, { thinkingConfig: { thinkingBudget: 32768 } });
+      return response.text;
+  },
+
+  research: async (query: string): Promise<ResearchContent> => {
+      const response = await cogniCraftService._generateContent('gemini-2.5-flash', query, { tools: [{googleSearch: {}}] });
+      const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      return {
+          answer: response.text,
+          sources: sources.filter((s: any) => s.web).map((s: any) => ({ uri: s.web.uri, title: s.web.title }))
+      };
+  },
+
+  analyzeImage: async (prompt: string, image: { data: string, mimeType: string }) => {
+      const imagePart = { inlineData: image };
+      const textPart = { text: prompt };
+      const response = await cogniCraftService._generateContent('gemini-2.5-flash', { parts: [imagePart, textPart] });
+      return response.text;
+  },
+
+  analyzeVideo: async (prompt: string, video: { data: string, mimeType: string }) => {
+      const videoPart = { inlineData: video };
+      const textPart = { text: prompt };
+      const response = await cogniCraftService._generateContent('gemini-2.5-pro', { parts: [videoPart, textPart] });
+      return response.text;
+  },
+  
+  transcribeAudio: async (audio: { data: string, mimeType: string }) => {
+      const audioPart = { inlineData: audio };
+      const textPart = { text: "Transcribe the following audio recording accurately:" };
+      const response = await cogniCraftService._generateContent('gemini-2.5-flash', { parts: [audioPart, textPart] });
+      return response.text;
+  },
+
+  generateSpeech: async (text: string): Promise<string> => {
+      if (!aiClientState.isInitialized || !aiClientState.client) {
+        throw new Error(aiClientState.initializationError || "CogniCraft AI client is not initialized.");
+      }
+      const response = await aiClientState.client.models.generateContent({
+          model: "gemini-2.5-flash-preview-tts",
+          contents: [{ parts: [{ text: `Say clearly: ${text}` }] }],
+          config: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                  voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: 'Kore' },
+                  },
+              },
+          },
+      });
+      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (!base64Audio) {
+          throw new Error("No audio data returned from API.");
+      }
+      return base64Audio;
+  },
+
+  generateVideo: async (prompt: string, aspectRatio: string): Promise<string> => {
+      if (!aiClientState.isInitialized || !aiClientState.client) {
+          throw new Error(aiClientState.initializationError || "CogniCraft AI client is not initialized.");
+      }
+      let operation = await aiClientState.client.models.generateVideos({
+          model: 'veo-3.1-fast-generate-preview',
+          prompt,
+          config: {
+              numberOfVideos: 1,
+              resolution: '720p',
+              aspectRatio: aspectRatio as '16:9' | '9:16'
+          }
+      });
+      while (!operation.done) {
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          operation = await aiClientState.client.operations.getVideosOperation({ operation });
+      }
+      const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+      if (!downloadLink) {
+          throw new Error("Video generation failed or returned no link.");
+      }
+      return downloadLink;
   },
 };

@@ -125,7 +125,20 @@ export interface LessonPlanContent {
   assessment: string;
 }
 
-export type LLMOutput = string | PPTContent | QuizContent | LessonPlanContent;
+export interface ResearchContent {
+  answer: string;
+  sources: { uri: string; title: string; }[];
+}
+
+export interface SpeechContent {
+  audioDataUrl: string;
+}
+
+export interface VideoContent {
+  videoUrl: string;
+}
+
+export type LLMOutput = string | PPTContent | QuizContent | LessonPlanContent | ResearchContent | SpeechContent | VideoContent;
 
 export interface SBTETResult {
   id: string;

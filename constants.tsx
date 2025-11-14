@@ -163,6 +163,61 @@ export const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM18 12.75l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 18l-1.035.259a3.375 3.375 0 00-2.456 2.456L18 21.75l-.259-1.035a3.375 3.375 0 00-2.456-2.456L14.25 18l1.035-.259a3.375 3.375 0 002.456-2.456L18 12.75z" fill="currentColor" fillOpacity="0.2"/>
     </svg>
   ),
+  video_spark: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75l.5 1 .5-1" opacity="0.8" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9l.5 1 .5-1" opacity="0.8" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.25 9.25l1-.5-1-.5" opacity="0.8" />
+    </svg>
+  ),
+  document_scanner: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12A2.25 2.25 0 0020.25 18V8.25a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 8.25v9.75A2.25 2.25 0 006 20.25z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18.75a2.25 2.25 0 01-2.25-2.25V7.5a2.25 2.25 0 012.25-2.25h12A2.25 2.25 0 0120.25 7.5v9a2.25 2.25 0 01-2.25 2.25H6z" opacity="0.4"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6" />
+    </svg>
+  ),
+  video_library: (props: React.SVGProps<SVGSVGElement>) => (
+     <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.75l-3-1.5v-3l3-1.5 3 1.5v3l-3 1.5z" opacity="0.7"/>
+    </svg>
+  ),
+  speech_to_text: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m12 4.5A6 6 0 0012 7.5m0 0a6 6 0 00-6 6m6-6v7.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 6.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+    </svg>
+  ),
+  bolt: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+    </svg>
+  ),
+  network_intelligence: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M8.25 21v-1.5M21 15.75h-1.5m-16.5 0H3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a6 6 0 100-12 6 6 0 000 12z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 14.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+    </svg>
+  ),
+  audio_spark: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M13.5 12h.008v.008h-.008V12z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.886 5.636a9 9 0 000 12.728M7.537 8.288a5.25 5.25 0 000 7.424M12 12h.008v.008H12V12z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 9l.5 1 .5-1" opacity="0.8" />
+    </svg>
+  ),
+  google: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21.9999 12.23C21.9999 11.38 21.9299 10.55 21.7899 9.75H12.2399V14.3H17.8399C17.6199 15.65 16.9199 16.8 15.8299 17.54V20.13H19.5099C21.1399 18.61 21.9999 15.71 21.9999 12.23Z" fill="#4285F4"/>
+        <path d="M12.2399 22.0001C15.1599 22.0001 17.6299 21.0301 19.5099 20.1301L15.8299 17.5401C14.8699 18.1501 13.6599 18.5101 12.2399 18.5101C9.48991 18.5101 7.14991 16.7101 6.26991 14.2801H2.46991V16.9401C4.31991 20.0801 7.97991 22.0001 12.2399 22.0001Z" fill="#34A853"/>
+        <path d="M6.2699 14.28C6.0699 13.71 5.9499 13.1 5.9499 12.47C5.9499 11.84 6.0699 11.23 6.2699 10.66V7.99999H2.4699C1.7299 9.42999 1.3499 10.99 1.3499 12.47C1.3499 13.95 1.7299 15.51 2.4699 16.94L6.2699 14.28Z" fill="#FBBC05"/>
+        <path d="M12.2399 6.42999C13.7299 6.42999 15.2299 6.95999 16.3599 8.01999L19.5799 4.79999C17.6199 3.01999 15.1599 2 12.2399 2C7.97991 2 4.31991 3.92 2.46991 7.06L6.26991 9.72C7.14991 7.29 9.48991 6.42999 12.2399 6.42999Z" fill="#EA4335"/>
+    </svg>
+  ),
   upload: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />

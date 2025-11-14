@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from '../constants';
-import { PPTContent, QuizContent, LessonPlanContent, LLMOutput } from '../types';
+import { PPTContent, QuizContent, LessonPlanContent, LLMOutput, ResearchContent, SpeechContent, VideoContent } from '../types';
 import { cogniCraftService } from '../services';
 import { ActionCard } from '../components';
 
@@ -8,25 +8,41 @@ import { ActionCard } from '../components';
 const isPPTContent = (output: any): output is PPTContent => output && typeof output === 'object' && 'slides' in output;
 const isQuizContent = (output: any): output is QuizContent => output && typeof output === 'object' && 'questions' in output;
 const isLessonPlanContent = (output: any): output is LessonPlanContent => output && typeof output === 'object' && 'activities' in output;
+const isResearchContent = (output: any): output is ResearchContent => output && typeof output === 'object' && 'answer' in output && 'sources' in output;
+const isSpeechContent = (output: any): output is SpeechContent => output && typeof output === 'object' && 'audioDataUrl' in output;
+const isVideoContent = (output: any): output is VideoContent => output && typeof output === 'object' && 'videoUrl' in output;
 
-const OutputDisplay: React.FC<{ output: LLMOutput, onSendTo: (toolId: any) => void, tools: any[] }> = ({ output, onSendTo, tools }) => {
+// --- Audio Decoding (for TTS) ---
+const decode = (base64: string) => {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+};
+
+const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
+    const dataInt16 = new Int16Array(data.buffer);
+    const frameCount = dataInt16.length / numChannels;
+    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+    for (let channel = 0; channel < numChannels; channel++) {
+        const channelData = buffer.getChannelData(channel);
+        for (let i = 0; i < frameCount; i++) {
+            channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+        }
+    }
+    return buffer;
+};
+
+const OutputDisplay: React.FC<{ output: LLMOutput }> = ({ output }) => {
     const [showAnswers, setShowAnswers] = useState(false);
-    const [sendToOpen, setSendToOpen] = useState(false);
     
     const handleCopy = () => {
         const textToCopy = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
         navigator.clipboard.writeText(textToCopy).then(() => alert("Copied to clipboard!"));
-    };
-    
-    const handleDownload = () => {
-        const textToSave = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
-        const blob = new Blob([textToSave], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `cognicraft-ai-output.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
     };
 
     const renderOutput = () => {
@@ -82,6 +98,29 @@ const OutputDisplay: React.FC<{ output: LLMOutput, onSendTo: (toolId: any) => vo
                  <div className="mt-4"><h4 className="font-semibold">Assessment:</h4><p>{output.assessment}</p></div>
             </div>
         }
+        if (isResearchContent(output)) {
+            return <div className="space-y-4">
+                <pre className="whitespace-pre-wrap font-sans text-slate-700 dark:text-slate-300">{output.answer}</pre>
+                <div className="mt-6 border-t dark:border-slate-700 pt-4">
+                    <h4 className="font-semibold text-lg">Sources</h4>
+                    <ul className="list-decimal list-inside mt-2 space-y-1 text-sm">
+                        {output.sources.map((source, i) => (
+                            <li key={i}>
+                                <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline">
+                                    {source.title || source.uri}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>;
+        }
+        if (isSpeechContent(output)) {
+            return <audio controls src={output.audioDataUrl} className="w-full">Your browser does not support the audio element.</audio>;
+        }
+        if (isVideoContent(output)) {
+            return <video controls src={output.videoUrl} className="w-full rounded-lg">Your browser does not support the video tag.</video>;
+        }
         return <p>Unsupported output format.</p>;
     };
 
@@ -89,17 +128,6 @@ const OutputDisplay: React.FC<{ output: LLMOutput, onSendTo: (toolId: any) => vo
         <div className="animate-fade-in">
             <div className="bg-slate-100 dark:bg-slate-900/50 p-2 rounded-lg flex items-center gap-2 mb-4 border dark:border-slate-700/50">
                 <button onClick={handleCopy} className="flex-1 text-sm font-semibold flex items-center justify-center gap-2 p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><Icons.copy className="w-4 h-4"/> Copy</button>
-                <button onClick={handleDownload} className="flex-1 text-sm font-semibold flex items-center justify-center gap-2 p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><Icons.download className="w-4 h-4"/> Download</button>
-                <div className="relative flex-1">
-                    <button onClick={() => setSendToOpen(!sendToOpen)} className="w-full text-sm font-semibold flex items-center justify-center gap-2 p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><Icons.send className="w-4 h-4"/> Send to...</button>
-                    {sendToOpen && (
-                        <div className="absolute bottom-full mb-2 w-full bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg shadow-lg z-10 py-1">
-                            {tools.map(tool => (
-                                <button key={tool.id} onClick={() => {onSendTo(tool.id); setSendToOpen(false);}} className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700">{tool.name}</button>
-                            ))}
-                        </div>
-                    )}
-                </div>
             </div>
             <div className="prose prose-sm dark:prose-invert max-w-none">{renderOutput()}</div>
         </div>
@@ -107,74 +135,149 @@ const OutputDisplay: React.FC<{ output: LLMOutput, onSendTo: (toolId: any) => vo
 };
 
 const NotebookLLMPage: React.FC = () => {
-    type ToolID = 'summary' | 'questions' | 'ppt' | 'story' | 'mindmap' | 'quiz' | 'lessonPlan' | 'explainConcept';
+    type ToolID = 'summary' | 'questions' | 'ppt' | 'story' | 'mindmap' | 'quiz' | 'lessonPlan' | 'explainConcept' | 'videoGen' | 'imageAnalyzer' | 'videoAnalyzer' | 'audioTranscription' | 'quickAnswer' | 'complexQuery' | 'tts' | 'research';
     
-    const tools: { id: ToolID, name: string, desc: string, icon: React.FC<any>, inputType: 'notes' | 'topic' | 'concept', outputType: 'text' | 'ppt' | 'quiz' | 'lessonPlan' }[] = [
-        { id: 'summary', name: 'Smart Summary', desc: 'Concise bullet points from notes.', icon: Icons.notebookLLM, inputType: 'notes', outputType: 'text' },
-        { id: 'questions', name: 'Question Generator', desc: 'Create exam questions from topics.', icon: Icons.results, inputType: 'topic', outputType: 'text' },
-        { id: 'ppt', name: 'PPT Generator', desc: 'Convert text into a presentation.', icon: Icons.reports, inputType: 'notes', outputType: 'ppt' },
-        { id: 'story', name: 'Story-style Summary', desc: 'Turn academic notes into a narrative.', icon: Icons.feedback, inputType: 'notes', outputType: 'text' },
-        { id: 'mindmap', name: 'Mind Map Generator', desc: 'Create a text-based mind map.', icon: Icons.syllabus, inputType: 'topic', outputType: 'text' },
-        { id: 'quiz', name: 'Quiz Maker', desc: 'Generate a quiz with answers.', icon: Icons.timetable, inputType: 'topic', outputType: 'quiz' },
-        { id: 'lessonPlan', name: 'Lesson Plan Generator', desc: 'For faculty: create a structured lesson plan.', icon: Icons.lessonPlan, inputType: 'topic', outputType: 'lessonPlan' },
-        { id: 'explainConcept', name: 'Concept Explainer', desc: 'Explain a complex concept simply (ELI5).', icon: Icons.explainConcept, inputType: 'concept', outputType: 'text' },
+    const tools: { id: ToolID, name: string, desc: string, icon: React.FC<any>, inputType: 'notes' | 'topic' | 'concept' | 'prompt' | 'file-prompt' | 'audio' | 'text' }[] = [
+        { id: 'summary', name: 'Smart Summary', desc: 'Concise bullet points from notes.', icon: Icons.notebookLLM, inputType: 'notes' },
+        { id: 'questions', name: 'Question Generator', desc: 'Create exam questions from topics.', icon: Icons.results, inputType: 'topic' },
+        { id: 'ppt', name: 'PPT Generator', desc: 'Convert text into a presentation.', icon: Icons.reports, inputType: 'notes' },
+        { id: 'story', name: 'Story-style Summary', desc: 'Turn academic notes into a narrative.', icon: Icons.feedback, inputType: 'notes' },
+        { id: 'mindmap', name: 'Mind Map Generator', desc: 'Create a text-based mind map.', icon: Icons.syllabus, inputType: 'topic' },
+        { id: 'quiz', name: 'Quiz Maker', desc: 'Generate a quiz with answers.', icon: Icons.timetable, inputType: 'topic' },
+        { id: 'lessonPlan', name: 'Lesson Plan Generator', desc: 'Create a structured lesson plan.', icon: Icons.lessonPlan, inputType: 'topic' },
+        { id: 'explainConcept', name: 'Concept Explainer', desc: 'Explain a complex concept simply.', icon: Icons.explainConcept, inputType: 'concept' },
+        { id: 'videoGen', name: 'Video Generation', desc: 'Create a video from a text prompt.', icon: Icons.video_spark, inputType: 'prompt' },
+        { id: 'imageAnalyzer', name: 'Image Analyzer', desc: 'Ask questions about an image.', icon: Icons.document_scanner, inputType: 'file-prompt' },
+        { id: 'videoAnalyzer', name: 'Video Analyzer', desc: 'Get insights from a video.', icon: Icons.video_library, inputType: 'file-prompt' },
+        { id: 'audioTranscription', name: 'Audio Transcription', desc: 'Transcribe spoken audio to text.', icon: Icons.speech_to_text, inputType: 'audio' },
+        { id: 'quickAnswer', name: 'Quick Answer', desc: 'Get fast responses for simple queries.', icon: Icons.bolt, inputType: 'prompt' },
+        { id: 'complexQuery', name: 'Complex Query', desc: 'Use advanced reasoning for hard problems.', icon: Icons.network_intelligence, inputType: 'prompt' },
+        { id: 'tts', name: 'Text-to-Speech', desc: 'Convert text into spoken audio.', icon: Icons.audio_spark, inputType: 'text' },
+        { id: 'research', name: 'Research Assistant', desc: 'Get up-to-date info with sources.', icon: Icons.google, inputType: 'prompt' },
     ];
     
     const [currentToolId, setCurrentToolId] = useState<ToolID | null>(null);
     const [inputText, setInputText] = useState('');
+    const [file, setFile] = useState<File | null>(null);
     const [output, setOutput] = useState<LLMOutput | null>(null);
     const [loading, setLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('Generating...');
     const [error, setError] = useState('');
     const [apiStatus] = useState(cogniCraftService.getClientStatus());
 
+    // States for specific tools
+    const [aspectRatio, setAspectRatio] = useState('16:9');
+    const [isRecording, setIsRecording] = useState(false);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
     const currentTool = tools.find(t => t.id === currentToolId);
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setFile(e.target.files[0]);
+        }
+    };
+    
+    const fileToGenerativePart = (file: File): Promise<{data: string, mimeType: string}> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64Data = (reader.result as string).split(',')[1];
+                resolve({ data: base64Data, mimeType: file.type });
+            };
+            reader.onerror = (err) => reject(err);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(stream);
+            const audioChunks: Blob[] = [];
+            mediaRecorderRef.current.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+            mediaRecorderRef.current.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                setFile(new File([audioBlob], "recording.webm", {type: "audio/webm"}));
+                stream.getTracks().forEach(track => track.stop());
+            };
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+        } catch (err) {
+            setError("Microphone access denied or not available.");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+        }
+    };
+
+
     const handleGenerate = async () => {
-        if (!currentTool || !inputText) return;
+        if (!currentTool) return;
 
         setError('');
         setOutput(null);
-        
-        const { inputType } = currentTool;
-        const trimmedInput = inputText.trim();
-
-        if (inputType === 'topic' || inputType === 'concept') {
-            if (trimmedInput.length < 3) {
-                setError(`Please enter a ${inputType} of at least 3 characters.`);
-                return;
-            }
-            if (trimmedInput.length > 100) {
-                setError(`The ${inputType} is too long. Please keep it under 100 characters.`);
-                return;
-            }
-            if (trimmedInput.includes('\n')) {
-                setError(`The ${inputType} should be a single line without line breaks.`);
-                return;
-            }
-        } else if (inputType === 'notes') {
-            if (trimmedInput.length < 20) {
-                setError('Please provide more detailed notes (at least 20 characters) for better results.');
-                return;
-            }
-            if (trimmedInput.length > 5000) {
-                setError('The notes are too long. Please keep them under 5000 characters.');
-                return;
-            }
-        }
-        
         setLoading(true);
-
+        setLoadingMessage('Generating...');
+        
         try {
             let result: LLMOutput;
             switch(currentTool.id) {
-                case 'summary': result = await cogniCraftService.summarizeNotes(trimmedInput); break;
-                case 'questions': result = await cogniCraftService.generateQuestions(trimmedInput); break;
-                case 'ppt': result = await cogniCraftService.generatePPT(trimmedInput); break;
-                case 'story': result = await cogniCraftService.createStory(trimmedInput); break;
-                case 'mindmap': result = await cogniCraftService.createMindMap(trimmedInput); break;
-                case 'quiz': result = await cogniCraftService.generateQuiz(trimmedInput); break;
-                case 'lessonPlan': result = await cogniCraftService.generateLessonPlan(trimmedInput); break;
-                case 'explainConcept': result = await cogniCraftService.explainConcept(trimmedInput); break;
+                case 'summary': result = await cogniCraftService.summarizeNotes(inputText); break;
+                case 'questions': result = await cogniCraftService.generateQuestions(inputText); break;
+                case 'ppt': result = await cogniCraftService.generatePPT(inputText); break;
+                case 'story': result = await cogniCraftService.createStory(inputText); break;
+                case 'mindmap': result = await cogniCraftService.createMindMap(inputText); break;
+                case 'quiz': result = await cogniCraftService.generateQuiz(inputText); break;
+                case 'lessonPlan': result = await cogniCraftService.generateLessonPlan(inputText); break;
+                case 'explainConcept': result = await cogniCraftService.explainConcept(inputText); break;
+                case 'quickAnswer': result = await cogniCraftService.quickAnswer(inputText); break;
+                case 'complexQuery': result = await cogniCraftService.complexQuery(inputText); break;
+                case 'research': result = await cogniCraftService.research(inputText); break;
+                case 'tts': {
+                    const audioBase64 = await cogniCraftService.generateSpeech(inputText);
+                    const audioContext = new (window.AudioContext)({ sampleRate: 24000 });
+                    const audioBuffer = await decodeAudioData(decode(audioBase64), audioContext, 24000, 1);
+                    const wavBlob = bufferToWave(audioBuffer, audioBuffer.length);
+                    const audioDataUrl = URL.createObjectURL(wavBlob);
+                    result = { audioDataUrl };
+                    break;
+                }
+                case 'imageAnalyzer':
+                    if (!file) throw new Error("Please upload an image.");
+                    const imagePart = await fileToGenerativePart(file);
+                    result = await cogniCraftService.analyzeImage(inputText, imagePart);
+                    break;
+                case 'videoAnalyzer':
+                    if (!file) throw new Error("Please upload a video.");
+                    const videoPart = await fileToGenerativePart(file);
+                    result = await cogniCraftService.analyzeVideo(inputText, videoPart);
+                    break;
+                case 'audioTranscription':
+                     if (!file) throw new Error("Please provide an audio file.");
+                    const audioPart = await fileToGenerativePart(file);
+                    result = await cogniCraftService.transcribeAudio(audioPart);
+                    break;
+                case 'videoGen':
+                    setLoadingMessage("Generating video... this may take a few minutes.");
+                    const hasKey = await (window as any).aistudio?.hasSelectedApiKey();
+                    if(!hasKey) {
+                        alert("Please select an API key to use for video generation. This is a one-time setup.");
+                        await (window as any).aistudio?.openSelectKey();
+                    }
+                    const videoLink = await cogniCraftService.generateVideo(inputText, aspectRatio);
+                    const response = await fetch(`${videoLink}&key=${process.env.API_KEY}`);
+                    const videoBlob = await response.blob();
+                    result = { videoUrl: URL.createObjectURL(videoBlob) };
+                    break;
+                default:
+                  throw new Error("Tool not implemented");
             }
             setOutput(result);
         } catch (e) {
@@ -185,23 +288,61 @@ const NotebookLLMPage: React.FC = () => {
         }
     };
     
-    const handleSendTo = (toolId: ToolID) => {
-        if (!output) return;
-        let textToSend = '';
-        if (typeof output === 'string') {
-            textToSend = output;
-        } else {
-            textToSend = `Based on the following generated content:\n\n${JSON.stringify(output, null, 2)}`;
+    // Helper to convert AudioBuffer to a WAV blob, necessary for playback of raw PCM data from TTS
+    function bufferToWave(abuffer: AudioBuffer, len: number) {
+        let numOfChan = abuffer.numberOfChannels,
+            length = len * numOfChan * 2 + 44,
+            buffer = new ArrayBuffer(length),
+            view = new DataView(buffer),
+            channels = [], i, sample,
+            offset = 0,
+            pos = 0;
+
+        // write WAV container
+        setUint32(0x46464952); // "RIFF"
+        setUint32(length - 8); // file length - 8
+        setUint32(0x45564157); // "WAVE"
+
+        setUint32(0x20746d66); // "fmt " chunk
+        setUint32(16); // length = 16
+        setUint16(1); // PCM (uncompressed)
+        setUint16(numOfChan);
+        setUint32(abuffer.sampleRate);
+        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+        setUint16(numOfChan * 2); // block-align
+        setUint16(16); // 16-bit
+
+        setUint32(0x61746164); // "data" - chunk
+        setUint32(length - pos - 4); // chunk length
+
+        // write interleaved data
+        for (i = 0; i < abuffer.numberOfChannels; i++)
+            channels.push(abuffer.getChannelData(i));
+
+        while (pos < length) {
+            for (i = 0; i < numOfChan; i++) {
+                sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                view.setInt16(pos, sample, true);
+                pos += 2;
+            }
+            offset++
         }
-        setCurrentToolId(toolId);
-        setInputText(textToSend);
-        setOutput(null); // Clear previous output
-    };
+        return new Blob([view], { type: 'audio/wav' });
+
+        function setUint16(data: number) { view.setUint16(pos, data, true); pos += 2; }
+        function setUint32(data: number) { view.setUint32(pos, data, true); pos += 4; }
+    }
+
 
     const inputPlaceholders: Record<string, string> = {
         notes: "Paste your detailed class notes or a long paragraph here...",
         topic: "Enter a topic, e.g., 'Ohm's Law' or 'The French Revolution'...",
-        concept: "Enter a concept or term, e.g., 'Quantum Entanglement' or 'Capitalism'..."
+        concept: "Enter a concept or term, e.g., 'Quantum Entanglement' or 'Capitalism'...",
+        prompt: "Enter a prompt...",
+        'file-prompt': "Optionally, add a prompt or question about the file...",
+        audio: "Record or upload an audio file to transcribe.",
+        text: "Enter text to convert to speech..."
     };
 
     if (!apiStatus.isInitialized) {
@@ -231,16 +372,36 @@ const NotebookLLMPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
-                        <textarea 
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg flex flex-col space-y-4">
+                        {(currentTool.inputType === 'file-prompt' || currentTool.inputType === 'audio') && (
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    {currentTool.id === 'imageAnalyzer' ? 'Upload Image' : currentTool.id === 'videoAnalyzer' ? 'Upload Video' : 'Upload or Record Audio'}
+                                </label>
+                                 <input type="file" onChange={handleFileChange} accept={currentTool.id === 'imageAnalyzer' ? 'image/*' : currentTool.id === 'videoAnalyzer' ? 'video/*' : 'audio/*'} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                                {currentTool.inputType === 'audio' && (
+                                     <button onClick={isRecording ? stopRecording : startRecording} className={`mt-2 w-full py-2 text-sm font-semibold rounded-lg ${isRecording ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                        {isRecording ? 'Stop Recording' : 'Record Audio'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                         {(currentTool.inputType !== 'audio' || file) && <textarea 
                             value={inputText}
                             onChange={e => setInputText(e.target.value)}
                             placeholder={inputPlaceholders[currentTool.inputType] || "Enter your input here..."}
-                            className="w-full flex-1 p-4 bg-slate-100 dark:bg-slate-900 rounded-lg text-base focus:ring-2 focus:ring-primary-500 outline-none resize-none"
-                        />
-                        <button onClick={handleGenerate} disabled={loading || !inputText} className="mt-4 w-full py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 transform hover:-translate-y-0.5 transition-all disabled:bg-slate-500 dark:disabled:bg-slate-700 disabled:shadow-none disabled:transform-none disabled:cursor-not-allowed">
+                            className={`w-full p-4 bg-slate-100 dark:bg-slate-900 rounded-lg text-base focus:ring-2 focus:ring-primary-500 outline-none resize-none ${currentTool.inputType === 'file-prompt' ? 'h-32' : 'flex-1'}`}
+                        />}
+                         {currentTool.id === 'videoGen' && (
+                            <div className="flex gap-4 items-center">
+                                <span className="text-sm font-medium">Aspect Ratio:</span>
+                                <label className="flex items-center gap-1"><input type="radio" name="aspect" value="16:9" checked={aspectRatio === '16:9'} onChange={(e) => setAspectRatio(e.target.value)} /> 16:9</label>
+                                <label className="flex items-center gap-1"><input type="radio" name="aspect" value="9:16" checked={aspectRatio === '9:16'} onChange={(e) => setAspectRatio(e.target.value)} /> 9:16</label>
+                            </div>
+                        )}
+                        <button onClick={handleGenerate} disabled={loading || !inputText && !file} className="w-full py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 shadow-lg hover:shadow-primary-500/50 transform hover:-translate-y-0.5 transition-all disabled:bg-slate-500 dark:disabled:bg-slate-700 disabled:shadow-none disabled:transform-none disabled:cursor-not-allowed">
                             <span className="flex items-center justify-center gap-2">
-                                {loading ? 'Generating...' : <> <Icons.sparkles className="w-5 h-5"/> Generate </>}
+                                {loading ? loadingMessage : <> <Icons.sparkles className="w-5 h-5"/> Generate </>}
                             </span>
                         </button>
                     </div>
@@ -249,10 +410,10 @@ const NotebookLLMPage: React.FC = () => {
                              <h2 className="text-xl font-bold">Output</h2>
                         </div>
                         <div className="p-6 flex-1 overflow-y-auto">
-                            {loading && <div className="text-center p-8"><span className="animate-pulse">CogniCraft AI is thinking...</span></div>}
+                            {loading && <div className="text-center p-8"><span className="animate-pulse">{loadingMessage}</span></div>}
                             {error && <div className="text-center p-4 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg">{error}</div>}
                             {!loading && !output && <div className="text-center p-8 text-slate-500">AI output will appear here.</div>}
-                            {output && <OutputDisplay output={output} onSendTo={handleSendTo} tools={tools} />}
+                            {output && <OutputDisplay output={output} />}
                         </div>
                     </div>
                 </div>
@@ -267,10 +428,10 @@ const NotebookLLMPage: React.FC = () => {
                     <Icons.cogniCraft className="h-12 w-12 text-white" />
                 </div>
                 <h1 className="text-4xl font-extrabold mt-4 text-slate-900 dark:text-white">CogniCraft AI Studio</h1>
-                <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">Powered by CogniCraft, Mira's proprietary academic AI.</p>
+                <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">Powered by Gemini, Mira's proprietary academic AI.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {tools.map(tool => (
+                {tools.sort((a,b) => a.name.localeCompare(b.name)).map(tool => (
                     <ActionCard 
                         key={tool.id} 
                         title={tool.name} 

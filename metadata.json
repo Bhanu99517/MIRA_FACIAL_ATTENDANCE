@@ -3,6 +3,7 @@
   "description": "A comprehensive, production-ready facial attendance management web application for colleges. It features facial recognition for attendance, role-based access, AI-powered tools for faculty, and detailed reporting, all within a modern, responsive interface with light and dark themes.",
   "requestFramePermissions": [
     "camera",
-    "geolocation"
+    "geolocation",
+    "microphone"
   ]
 }
