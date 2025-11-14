@@ -12,18 +12,35 @@ export const SplashScreen: React.FC = () => (
         <div className="w-full h-full bg-primary-500/10 rounded-full animate-pulse-faint"></div>
     </div>
     <div className="absolute bottom-0 right-0 w-72 h-72 blur-3xl animate-fade-in [animation-delay:1.2s]">
-        <div className="w-full h-full bg-accent-500/10 rounded-full animate-pulse-faint [animation-delay:0.5s]"></div>
+        <div className="w-full h-full bg-primary-500/10 rounded-full animate-pulse-faint [animation-delay:0.5s]"></div>
     </div>
 
     <div className="text-center z-10">
       {/* Logo with scale-in animation */}
-      <Icons.logo className="h-24 w-24 text-primary-500 mx-auto animate-scale-in" />
-      {/* Title with fade-in-up animation */}
-      <h1 className="mt-4 text-4xl font-bold text-white tracking-tight animate-fade-in-up [animation-delay:400ms]">Mira Attendance</h1>
+      <Icons.logoWithText className="w-64 h-auto mx-auto animate-scale-in" />
       {/* Subtitle with fade-in-up animation and longer delay */}
-      <p className="text-slate-400 animate-fade-in-up [animation-delay:600ms]">Next-Gen Attendance Management</p>
+      <p className="text-primary-400 mt-4 animate-fade-in-up [animation-delay:600ms]">Next-Gen Attendance Management</p>
     </div>
   </div>
+);
+
+export const FullScreenLogo: React.FC = () => (
+    <div className="flex h-screen w-screen items-center justify-center bg-slate-900 overflow-hidden relative animate-fade-in">
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary-900 via-slate-900 to-accent-900 animate-gradient-bg opacity-30"></div>
+      
+      {/* Decorative blur shapes */}
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 blur-3xl animate-fade-in [animation-delay:800ms]">
+          <div className="w-full h-full bg-primary-500/10 rounded-full animate-pulse-faint"></div>
+      </div>
+      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 blur-3xl animate-fade-in [animation-delay:1000ms]">
+          <div className="w-full h-full bg-primary-500/10 rounded-full animate-pulse-faint [animation-delay:0.5s]"></div>
+      </div>
+  
+      <div className="text-center z-10">
+        <Icons.logoWithText className="w-72 h-auto mx-auto animate-scale-in [animation-duration:800ms] animate-logo-breath" />
+      </div>
+    </div>
 );
 
 export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGranted }) => {
@@ -96,7 +113,7 @@ export const PermissionsPrompt: React.FC<{ onGranted: () => void }> = ({ onGrant
     return (
         <div className="flex h-screen w-screen items-center justify-center bg-slate-900 overflow-hidden text-white p-4">
             <div className="text-center max-w-lg bg-slate-800/50 backdrop-blur-lg border border-white/10 p-8 rounded-2xl shadow-2xl animate-fade-in-down">
-                <Icons.logo className="h-16 w-16 mx-auto text-primary-500 mb-4 animate-logo-breath" />
+                <Icons.logoWithText className="h-24 w-auto mx-auto mb-4 animate-logo-breath" />
                 <h1 className="text-3xl font-bold mb-2">Permissions Required</h1>
                 <p className="text-slate-400 mb-6">
                     Mira Attendance needs access to your camera and location to mark your attendance.

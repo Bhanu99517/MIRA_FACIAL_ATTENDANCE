@@ -428,17 +428,19 @@ export const sendEmail = async (to: string, subject: string, body: string): Prom
     throw new Error("Invalid email address provided for simulated sending.");
 };
   
-export const getStudentByPin = async (pin: string, currentUser: User): Promise<User | null> => {
+export const getStudentByPin = async (pin: string, currentUser: User | null): Promise<User | null> => {
     const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.role === Role.STUDENT);
-    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && user?.college_code !== currentUser.college_code) {
+    
+    // If a user is logged in, enforce tenancy rules. Public access skips this.
+    if (currentUser && currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && user?.college_code !== currentUser.college_code) {
         return delay(null); // Principal trying to access student from another college
     }
     return delay(user || null, 200);
 };
 
-export const getUserByPin = async (pin: string, currentUser: User): Promise<User | null> => {
+export const getUserByPin = async (pin: string, currentUser: User | null): Promise<User | null> => {
     const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase());
-    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && user?.college_code !== currentUser.college_code) {
+    if (currentUser && currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && user?.college_code !== currentUser.college_code) {
         return delay(null);
     }
     return delay(user || null, 100);
@@ -486,6 +488,14 @@ export const getTodaysAttendanceForUser = async (userId: string): Promise<Attend
   
 export const getAttendanceForUser = async (userId: string): Promise<AttendanceRecord[]> => {
     return delay((storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.userId === userId));
+};
+
+export const getAttendanceForUserByPin = async (pin: string): Promise<AttendanceRecord[]> => {
+    const user = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.role === Role.STUDENT);
+    if (!user) {
+        return delay([]);
+    }
+    return delay((storage.getItem<AttendanceRecord[]>('MOCK_ATTENDANCE') || []).filter(a => a.userId === user.id));
 };
 
 export const CAMPUS_LAT = 18.4550;
@@ -688,11 +698,15 @@ export const updateApplicationStatus = async (appId: string, status: Application
 };
 
 
-export const getAllSbtetResultsForPin = async (pin: string, currentUser: User): Promise<SBTETResult[]> => {
-    const student = MOCK_USERS.find(u => u.pin === pin);
-    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && student?.college_code !== currentUser.college_code) {
+export const getAllSbtetResultsForPin = async (pin: string, currentUser: User | null): Promise<SBTETResult[]> => {
+    const student = MOCK_USERS.find(u => u.pin.toUpperCase() === pin.toUpperCase() && u.role === Role.STUDENT);
+    if (!student) return delay([]);
+
+    // If a user is logged in, enforce tenancy rules. Public access skips this.
+    if (currentUser && currentUser.role !== Role.SUPER_ADMIN && currentUser.college_code && student.college_code !== currentUser.college_code) {
         return delay([]);
     }
+    
     const allResults = storage.getItem<SBTETResult[]>('MOCK_SBTET_RESULTS') || [];
     const studentResults = allResults.filter(r => r.pin === pin).sort((a, b) => a.semester - b.semester);
     return delay(studentResults, 500);

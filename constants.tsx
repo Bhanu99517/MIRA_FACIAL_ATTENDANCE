@@ -2,23 +2,18 @@ import React from 'react';
 import { Page } from './types';
 
 export const Icons = {
-  logo: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} viewBox="0 0 52 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-          <linearGradient id="logo-gradient-primary" x1="0" y1="0" x2="1" y2="1">
-              <stop stopColor="#38bdf8"/>
-              <stop offset="1" stopColor="#0369a1"/>
-          </linearGradient>
-          <linearGradient id="logo-gradient-accent" x1="1" y1="0" x2="0" y2="1">
-              <stop stopColor="#f472b6"/>
-              <stop offset="1" stopColor="#ec4899"/>
-          </linearGradient>
-      </defs>
-      <path d="M2 46L2 2L26 26L2 46Z" className="mira-logo-primary" fill="url(#logo-gradient-primary)"/>
-      <path d="M50 2L50 46L26 26L50 2Z" className="mira-logo-accent" fill="url(#logo-gradient-accent)"/>
-      <path d="M26 34C29.3137 34 32 31.3137 32 28C32 24.6863 29.3137 22 26 22C22.6863 22 20 24.6863 20 28C20 31.3137 22.6863 34 26 34Z" className="mira-logo-inner-glow" fill="white" fillOpacity="0.2"/>
-      <circle cx="26" cy="28" r="3" className="mira-logo-inner-dot" fill="white"/>
-  </svg>
+  logoWithText: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} viewBox="0 0 160 32" xmlns="http://www.w3.org/2000/svg">
+      <image href="/app.png" x="0" y="0" height="32" width="32" />
+      <text x="40" y="22" fontFamily="Inter, sans-serif" fontSize="18" fontWeight="bold" fill="currentColor" className="text-slate-800 dark:text-white">
+        Mira Attendance
+      </text>
+    </svg>
+  ),
+  logoIcon: (props: React.SVGProps<SVGSVGElement>) => (
+     <svg {...props} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <image href="/app.png" x="0" y="0" height="32" width="32" />
+    </svg>
   ),
   dashboard: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -179,39 +174,20 @@ export const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
     </svg>
   ),
-  googleSheet: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} viewBox="0 0 24 24" fill="currentColor">
-        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M13,3.5L18.5,9H13V3.5M11,14H9V12H11V14M11,18H9V16H11V18M15,14H13V12H15V14M15,18H13V16H15V18Z" />
-    </svg>
-  ),
   copy: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375v-3.375M3.375 6.75h17.25" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
     </svg>
   ),
   send: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
     </svg>
-  ),
-  lessonPlan: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" opacity="0.6" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 15h6" />
-    </svg>
-  ),
-  explainConcept: (props: React.SVGProps<SVGSVGElement>) => (
-      <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity="0.4"/>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 17.25h.008v.008H12v-.008z" />
-      </svg>
   ),
   camera: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.776 48.776 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008v-.008z" />
     </svg>
   ),
   location: (props: React.SVGProps<SVGSVGElement>) => (
@@ -220,33 +196,50 @@ export const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
     </svg>
   ),
+   lessonPlan: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h.01M15 12h.01M10.5 16.5h3m-6.75 3.75a9 9 0 1113.5 0 9 9 0 01-13.5 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5V3" opacity="0.4" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-1.5" opacity="0.4" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12H3" opacity="0.4" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12h-1.5" opacity="0.4" />
+    </svg>
+  ),
+  explainConcept: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a2.25 2.25 0 002.25-2.25H9.75A2.25 2.25 0 0012 21z" opacity="0.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3a2.25 2.25 0 00-2.25 2.25h4.5A2.25 2.25 0 0012 3z" opacity="0.5" />
+    </svg>
+  ),
 };
 
-export const navLinks: { title: string; links: { name: Page, icon: React.FC<React.SVGProps<SVGSVGElement>> }[] }[] = [
+// FIX: Add missing navLinks export.
+export const navLinks = [
   {
     title: 'Main',
     links: [
-      { name: 'Dashboard', icon: Icons.dashboard },
-      { name: 'Reports', icon: Icons.reports },
-      { name: 'AttendanceLog', icon: Icons.attendance },
-      { name: 'ManageUsers', icon: Icons.users },
+      { name: 'Dashboard' as Page, icon: Icons.dashboard },
+      { name: 'Reports' as Page, icon: Icons.reports },
+      { name: 'AttendanceLog' as Page, icon: Icons.attendance },
+      { name: 'ManageUsers' as Page, icon: Icons.users },
+      { name: 'Applications' as Page, icon: Icons.applications },
     ],
   },
   {
     title: 'Academics',
     links: [
-      { name: 'Applications', icon: Icons.applications },
-      { name: 'SBTETResults', icon: Icons.results },
-      { name: 'Syllabus', icon: Icons.syllabus },
-      { name: 'Timetables', icon: Icons.timetable },
-      { name: 'CogniCraft AI', icon: Icons.cogniCraft },
+      { name: 'SBTETResults' as Page, icon: Icons.results },
+      { name: 'Syllabus' as Page, icon: Icons.syllabus },
+      { name: 'Timetables' as Page, icon: Icons.timetable },
+      { name: 'CogniCraft AI' as Page, icon: Icons.cogniCraft },
     ],
   },
   {
-    title: 'System',
+    title: 'Support',
     links: [
-      { name: 'Feedback', icon: Icons.feedback },
-      { name: 'Settings', icon: Icons.settings },
+      { name: 'Feedback' as Page, icon: Icons.feedback },
+      { name: 'Settings' as Page, icon: Icons.settings },
     ],
   },
 ];

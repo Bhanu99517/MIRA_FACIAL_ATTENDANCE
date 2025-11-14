@@ -766,7 +766,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                         )
                     ) : (
                         <div className="relative w-80 h-80 rounded-full bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden shadow-inner">
-                            <Icons.logo className="w-24 h-24 text-slate-400 dark:text-slate-600" />
+                            <Icons.logoIcon className="w-24 h-24 text-slate-400 dark:text-slate-600" />
                         </div>
                     )}
                     <div className="mt-6 min-h-[4.5rem] flex flex-col items-center justify-center">
