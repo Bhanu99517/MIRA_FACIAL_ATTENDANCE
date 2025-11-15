@@ -1,11 +1,11 @@
 <div align="center">
 </div>
 
-# Run and deploy your AI Studio app
+# MIRA
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio: https://ai.studio/apps/drive/114XJT5xzXkjnKTDz-EA9JQjg_02Lmion
+
 
 ## Run Locally
 
