@@ -8,7 +8,11 @@ import React, { useState, useEffect, useRef } from 'react';
 // Import type definitions for User.
 import { User } from '../types';
 // Import all necessary service functions.
-import { getStudentByPin, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService, markAttendance as apiMarkAttendance } from '../services';
+// before:
+// import { getStudentByPin, getDistanceInKm, ... } from '../services';
+
+import { getStudentByPinFromDb, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService, markAttendanceToDb } from '../services';
+
 // Import the global application context hook.
 import { useAppContext } from '../App';
 
