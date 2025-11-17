@@ -4,6 +4,101 @@ import { aiClientState } from './geminiClient';
 // FIX: Import the 'Type' enum from the genai library instead of using a mock.
 import { Type } from '@google/genai';
 
+// src/services.ts
+import { Student, AttendanceRecord, ApiResponse } from "./types";
+
+const getBackendBaseUrl = (): string => {
+  return import.meta.env.VITE_BACKEND_URL || "";
+};
+
+// ---------- STUDENT API ----------
+
+export const apiCreateStudent = async (payload: {
+  name: string;
+  rollNumber: string;
+  email?: string;
+  userId?: string;
+  referenceImageUrl?: string;
+  faceEmbedding?: number[];
+}): Promise<ApiResponse<Student>> => {
+  const base = getBackendBaseUrl();
+  const res = await fetch(`${base}/api/students`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = (await res.json()) as ApiResponse<Student>;
+  return data;
+};
+
+export const apiFetchStudents = async (): Promise<ApiResponse<Student[]>> => {
+  const base = getBackendBaseUrl();
+  const res = await fetch(`${base}/api/students`);
+  const data = (await res.json()) as ApiResponse<Student[]>;
+  return data;
+};
+
+// ---------- ATTENDANCE API ----------
+
+export const apiFetchAttendance = async (): Promise<
+  ApiResponse<AttendanceRecord[]>
+> => {
+  const base = getBackendBaseUrl();
+  const res = await fetch(`${base}/api/attendance`);
+  const data = (await res.json()) as any;
+
+  if (data.success && Array.isArray(data.data)) {
+    // map backend populated data -> frontend AttendanceRecord
+    const records: AttendanceRecord[] = data.data.map((rec: any) => ({
+      id: rec._id,
+      studentId: rec.student?._id || "",
+      timestamp: rec.timestamp,
+      status: rec.status,
+      deviceId: rec.deviceId,
+      notes: undefined
+    }));
+    return { success: true, data: records };
+  }
+
+  return { success: false, error: data.error || "Unknown error" };
+};
+
+export const apiMarkAttendanceByStudentId = async (opts: {
+  studentId: string;
+  status?: "PRESENT" | "ABSENT" | "LATE";
+  deviceId?: string;
+  confidence?: number;
+}): Promise<ApiResponse<AttendanceRecord>> => {
+  const base = getBackendBaseUrl();
+  const res = await fetch(`${base}/api/attendance/mark`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(opts)
+  });
+
+  const data = (await res.json()) as any;
+  if (data.success && data.data) {
+    const rec: AttendanceRecord = {
+      id: data.data._id,
+      studentId: data.data.student,
+      timestamp: data.data.timestamp,
+      status: data.data.status,
+      deviceId: data.data.deviceId,
+      notes: undefined
+    };
+    return { success: true, data: rec };
+  }
+
+  return { success: false, error: data.error || "Failed to mark attendance." };
+};
+
+
+
+
+
+
+
 // --- MOCK STORAGE SERVICE ---
 class MockStorage {
     private store: Map<string, any> = new Map();
