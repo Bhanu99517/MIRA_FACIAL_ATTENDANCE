@@ -1,3 +1,3 @@
 # mira
 
-http //miraattendance.vercel.app
+http//miraattendance.vercel.app
