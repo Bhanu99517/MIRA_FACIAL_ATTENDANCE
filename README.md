@@ -1,3 +1,10 @@
-# mira
+<!DOCTYPE html>
+<html>
+<body>
 
-http://miraattendance.vercel.app
+<h1>Hello</h1>
+
+<p><a href="https://miraattendance.vercel.app/">Visit my Web app</a></p>
+
+</body>
+</html>
