@@ -30,7 +30,7 @@ const FeedbackCard: React.FC<{ feedback: Feedback, onStatusChange: (id: string, 
                         <option>Resolved</option>
                     </select>
                 ) : (
-                    getStatusChip(feedback.status)
+                    <span className={getStatusChip(feedback.status)}>{feedback.status}</span>
                 )}
             </div>
             <div className="mt-3 pt-3 border-t dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 flex justify-between">

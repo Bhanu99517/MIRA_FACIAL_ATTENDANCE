@@ -4,7 +4,7 @@ import { getUsers, addUser, updateUser, deleteUser } from '../services';
 import type { User } from '../types';
 import { Role } from '../types';
 import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon, KeyIcon, LockClosedIcon, LockOpenIcon } from './Icons';
-import { RolePill } from '../components';
+import { RolePill } from './components';
 
 const createAvatar = (seed: string) => `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 
@@ -495,15 +495,15 @@ const ManageUsersPage: React.FC<{ user: User | null }> = ({ user: authenticatedU
 
     // Hierarchical access control logic
     const canManagePrincipals = authenticatedUser?.role === Role.SUPER_ADMIN;
-    const canManageAcademics = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
-    const canManageSupportStaff = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
-    const canManageStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canManageAcademics = authenticatedUser?.role === Role.SUPER_ADMIN || authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canManageSupportStaff = authenticatedUser?.role === Role.SUPER_ADMIN || authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canManageStudents = authenticatedUser?.role === Role.SUPER_ADMIN || authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
 
     // Visibility logic
     const canSeePrincipals = authenticatedUser?.role === Role.SUPER_ADMIN;
-    const canSeeAcademics = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
-    const canSeeStaff = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
-    const canSeeStudents = authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canSeeAcademics = authenticatedUser?.role === Role.SUPER_ADMIN || authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canSeeStaff = authenticatedUser?.role === Role.SUPER_ADMIN || authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
+    const canSeeStudents = authenticatedUser?.role === Role.SUPER_ADMIN || authenticatedUser?.role === Role.PRINCIPAL || authenticatedUser?.role === Role.HOD || authenticatedUser?.role === Role.FACULTY;
     
     const isSuperAdmin = authenticatedUser?.role === Role.SUPER_ADMIN;
 

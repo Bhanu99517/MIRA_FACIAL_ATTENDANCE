@@ -17,6 +17,15 @@ import StatusChecker from './StatusChecker';
 const inputClasses = "mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition";
 const buttonClasses = "font-semibold py-2 px-4 rounded-lg transition-all shadow-lg hover:shadow-primary-600/50 transform hover:-translate-y-0.5 bg-primary-600 text-white hover:bg-primary-700 disabled:bg-slate-200 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400 disabled:transform-none disabled:shadow-none";
 
+// A helper function to get the appropriate CSS classes for the status "pill" based on the application status.
+const getStatusChip = (status: ApplicationStatus) => {
+    const baseClasses = "px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full";
+    if (status === ApplicationStatus.APPROVED) return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200`;
+    if (status === ApplicationStatus.REJECTED) return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200`;
+    // Default style for 'Pending' status.
+    return `${baseClasses} bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200`;
+};
+
 // --- Admin View Components ---
 
 const NewApplicationForm: React.FC<{ onApplicationSubmitted: (app: Application) => void }> = ({ onApplicationSubmitted }) => {
@@ -282,14 +291,6 @@ const AdminView: React.FC<{ user: User }> = ({ user }) => {
 };
 
 // --- Student View Components ---
-
-// FIX: Define the missing getStatusChip function to resolve the "Cannot find name 'getStatusChip'" error.
-const getStatusChip = (status: ApplicationStatus) => {
-    const baseClasses = "px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full";
-    if (status === ApplicationStatus.APPROVED) return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200`;
-    if (status === ApplicationStatus.REJECTED) return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200`;
-    return `${baseClasses} bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200`;
-};
 
 const StudentView: React.FC<{ user: User }> = ({ user }) => {
     const [applications, setApplications] = useState<Application[]>([]);

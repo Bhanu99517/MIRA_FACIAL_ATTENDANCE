@@ -1,145 +1,240 @@
 // backend/server.js
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const connectDB = require("./database");
+const User = require("./models/User");
+const Student = require("./models/Student");
+const Attendance = require("./models/Attendance");
 
-// --- 1. IMPORTS ---
-const express = require('express');
-const cors = require('cors');
-const nodemailer = require('nodemailer');
-const connectDB = require('./database');
-// FIX: Add path module to construct a robust path to the environment file.
-const path = require('path');
+dotenv.config();
 
-// Load environment variables from the root .tsx file which is now a JS module
-try {
-  const config = require(path.resolve(__dirname, '..', '.tsx'));
-  for (const key in config) {
-    if (Object.prototype.hasOwnProperty.call(config, key)) {
-      process.env[key] = config[key];
-    }
-  }
-} catch (error) {
-    console.error('FATAL: Could not load environment variables from .tsx file. Make sure it exists and is a valid module.', error);
-    process.exit(1);
-}
-
-
-// --- 2. APP SETUP ---
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5001;
 
-// CORS: allow frontend origin (or * if not set)
-const allowedOrigins = (process.env.CORS_ORIGIN || '*')
-  .split(',')
-  .map(o => o.trim())
+// --- Middleware ---
+const allowedOrigins = (process.env.CORS_ORIGIN || "*")
+  .split(",")
+  .map((o) => o.trim())
   .filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // For tools like Postman (no origin header)
-      if (!origin || allowedOrigins.includes('*')) {
+      if (!origin || allowedOrigins.includes("*")) {
         return callback(null, true);
       }
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(new Error('Not allowed by CORS'));
+      return callback(new Error("Not allowed by CORS"));
     }
   })
 );
 
 app.use(express.json());
 
-// --- 3. DATABASE (OPTIONAL) ---
-connectDB().catch(err => {
-  console.error('⚠️  Failed to connect to MongoDB:', err.message);
-});
+// --- DB ---
+connectDB();
 
-// --- 4. EMAIL TRANSPORTER ---
-
-// Validate required envs
-if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  console.warn(
-    '⚠️  EMAIL_HOST / EMAIL_USER / EMAIL_PASS not fully set. ' +
-    'POST /api/send-email will FAIL until these are configured.'
-  );
-}
-
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || '587', 10),
-  secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for 587
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-// Optional: verify transporter on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Email transporter verification failed:', error.message);
-  } else {
-    console.log('📧 Email transporter ready');
-  }
-});
-
-// --- 5. ROUTES ---
-
-// Simple root
-app.get('/', (req, res) => {
-  res.send('Mira Attendance Backend is running.');
-});
+// --- Routes ---
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    time: new Date().toISOString()
-  });
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-/**
- * POST /api/send-email
- * Body: { to: string, subject: string, body: string }
- * Used by the frontend to send OTP and other mails.
- */
-app.post('/api/send-email', async (req, res) => {
-  const { to, subject, body } = req.body || {};
+// ---------- USERS ----------
 
-  if (!to || !subject || !body) {
-    return res.status(400).json({
-      success: false,
-      message: 'Missing "to", "subject", or "body" in request.'
-    });
-  }
-
+// Register a new user (dashboard user/admin/staff/student)
+app.post("/api/users", async (req, res) => {
   try {
-    const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+    const { name, email, role } = req.body;
+    if (!name || !email) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Name and email are required." });
+    }
 
-    await transporter.sendMail({
-      from,
-      to,
-      subject,
-      text: body,
-      // Optional: also send HTML
-      html: body.replace(/\n/g, '<br>')
-    });
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res
+        .status(409)
+        .json({ success: false, error: "User with this email already exists." });
+    }
 
-    console.log(`📧 Email sent to ${to} with subject "${subject}"`);
-
-    return res.json({ success: true });
+    const user = await User.create({ name, email, role });
+    res.json({ success: true, data: user });
   } catch (error) {
-    console.error('❌ Error sending email:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to send email',
-      error: error.message
-    });
+    console.error("Error creating user:", error);
+    res.status(500).json({ success: false, error: "Server error creating user." });
   }
 });
 
-// --- 6. START SERVER ---
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await User.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ success: false, error: "Server error fetching users." });
+  }
+});
+
+// ---------- STUDENTS ----------
+
+// Register a new student (with reference image URL)
+app.post("/api/students", async (req, res) => {
+  try {
+    const { name, rollNumber, email, userId, referenceImageUrl, faceEmbedding } =
+      req.body;
+
+    if (!name || !rollNumber) {
+      return res.status(400).json({
+        success: false,
+        error: "Name and rollNumber are required."
+      });
+    }
+
+    const existing = await Student.findOne({ rollNumber });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        error: "Student with this rollNumber already exists."
+      });
+    }
+
+    const student = await Student.create({
+      name,
+      rollNumber,
+      email,
+      user: userId || undefined,
+      referenceImageUrl,
+      faceEmbedding
+    });
+
+    res.json({ success: true, data: student });
+  } catch (error) {
+    console.error("Error creating student:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Server error creating student." });
+  }
+});
+
+app.get("/api/students", async (req, res) => {
+  try {
+    const students = await Student.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: students });
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Server error fetching students." });
+  }
+});
+
+// ---------- ATTENDANCE ----------
+
+// Mark attendance when you already KNOW the studentId
+// (e.g. your face-recognition service has matched the face)
+app.post("/api/attendance/mark", async (req, res) => {
+  try {
+    const { studentId, status, deviceId, confidence, method } = req.body;
+
+    if (!studentId) {
+      return res
+        .status(400)
+        .json({ success: false, error: "studentId is required." });
+    }
+
+    // Ensure student exists
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Student not found." });
+    }
+
+    const record = await Attendance.create({
+      student: student._id,
+      status: status || "PRESENT",
+      deviceId,
+      confidence,
+      method: method || "face-recognition"
+    });
+
+    res.json({ success: true, data: record });
+  } catch (error) {
+    console.error("Error marking attendance:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Server error marking attendance." });
+  }
+});
+
+// List attendance records
+app.get("/api/attendance", async (req, res) => {
+  try {
+    const records = await Attendance.find()
+      .populate("student")
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: records });
+  } catch (error) {
+    console.error("Error fetching attendance:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Server error fetching attendance." });
+  }
+});
+
+// Example: mark attendance from rollNumber + confidence (for MaixCAM/Python integration)
+app.post("/api/attendance/mark-from-face", async (req, res) => {
+  try {
+    const { rollNumber, confidence, deviceId } = req.body;
+
+    if (!rollNumber || typeof confidence !== "number") {
+      return res.status(400).json({
+        success: false,
+        error: "rollNumber and confidence are required."
+      });
+    }
+
+    // threshold – only mark attendance when match is strong
+    const THRESHOLD = 0.75; // 75% similarity for example
+
+    if (confidence < THRESHOLD) {
+      return res.status(400).json({
+        success: false,
+        error: "Face match confidence too low. Attendance not marked."
+      });
+    }
+
+    const student = await Student.findOne({ rollNumber });
+    if (!student) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Student not found for rollNumber." });
+    }
+
+    const record = await Attendance.create({
+      student: student._id,
+      status: "PRESENT",
+      deviceId,
+      confidence,
+      method: "face-recognition"
+    });
+
+    res.json({ success: true, data: record });
+  } catch (error) {
+    console.error("Error in /mark-from-face:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Server error marking attendance." });
+  }
+});
+
+// --- Start server ---
 app.listen(port, () => {
-  console.log(`🚀 Backend server listening at http://localhost:${port}`);
-  console.log('Waiting for requests...');
+  console.log(`🚀 Backend server running at http://localhost:${port}`);
 });

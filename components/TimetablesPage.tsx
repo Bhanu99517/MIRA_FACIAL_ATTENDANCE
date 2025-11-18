@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import type { User, Timetable } from '../types';
 import { Role, Branch } from '../types';
 import { getTimetable, setTimetable as apiSetTimetable } from '../services';
 import { Icons } from '../constants';
-import { Modal } from '../components';
+import { Modal } from './components';
 
 const TimetablesPage: React.FC<{ user: User }> = ({ user }) => {
     const [branch, setBranch] = useState<Branch>(Object.values(Branch).find(b => b === user.branch) || Branch.EC);

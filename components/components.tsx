@@ -4,9 +4,9 @@
 // Import React and hooks like useState, useEffect.
 import React, { useState, useEffect } from 'react';
 // Import the centralized Icons object.
-import { Icons } from './constants';
+import { Icons } from '../constants.tsx'; // MODIFIED LINE
 // Import the Role enum for type safety.
-import { Role } from './types';
+import { Role } from '../types';
 
 // A component displayed while the application is loading initially.
 export const SplashScreen: React.FC = () => (

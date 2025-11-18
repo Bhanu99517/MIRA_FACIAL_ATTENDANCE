@@ -2,8 +2,7 @@ import React, { useState, useEffect, createContext, useContext, useMemo, useCall
 import { Page, User, Role } from './types';
 import { getDashboardStats, getFaculty } from './services';
 import { cogniCraftService } from './services';
-// FIX: Add missing imports for StatCard and ActionCard.
-import { SplashScreen, PermissionsPrompt, StatCard, ActionCard, FullScreenLogo } from './components';
+import { SplashScreen, PermissionsPrompt, StatCard, ActionCard, FullScreenLogo } from './components/components';
 import ManageUsersPage from './components/ManageUsersPage';
 import ReportsPage from './components/ReportsPage';
 import ApplicationsPage from './components/ApplicationsPage';
@@ -14,8 +13,9 @@ import TimetablesPage from './components/TimetablesPage';
 import FeedbackPage from './components/FeedbackPage';
 import SettingsPage from './components/SettingsPage';
 import NotebookLLMPage from './components/NotebookLLMPage';
+import TodoListPage from './components/TodoListPage';
 import Header from './components/Header';
-import { navLinks, Icons } from './constants';
+import { navLinks, Icons } from './constants.tsx'; // MODIFIED LINE
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 
@@ -83,9 +83,6 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     if (user?.role === Role.SUPER_ADMIN) {
         document.documentElement.classList.add('super-admin-hacker-theme');
     } else {
-        document.documentElement.classList.remove('super-admin-hacker-theme');
-    }
-    return () => {
         document.documentElement.classList.remove('super-admin-hacker-theme');
     };
   }, [user]);
@@ -207,6 +204,12 @@ const Sidebar: React.FC = () => {
                                 const isAiLink = link.name === 'CogniCraft AI';
                                 const isDisabled = isAiLink && !isAiAvailable;
 
+                                const isTodoListLink = link.name === 'TodoList';
+                                const canSeeTodoList = user && [Role.FACULTY, Role.HOD, Role.PRINCIPAL, Role.SUPER_ADMIN].includes(user.role);
+                                if(isTodoListLink && !canSeeTodoList) {
+                                  return null;
+                                }
+
                                 return (
                                 <button
                                     key={link.name}
@@ -248,37 +251,59 @@ const Sidebar: React.FC = () => {
 const DashboardPage: React.FC = () => {
   const { setPage, dashboardStats, isAiAvailable, user } = useAppContext();
 
+  // Determine starting delay based on role. Super Admin doesn't have stat cards.
+  const statCardDelay = 200;
+  const quickActionTitleDelay = user?.role === Role.SUPER_ADMIN ? 200 : 500;
+  const quickActionBaseDelay = user?.role === Role.SUPER_ADMIN ? 300 : 600;
+  const notificationDelay = user?.role === Role.SUPER_ADMIN ? 500 : 1000;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8">
       {user?.role !== Role.SUPER_ADMIN && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard title="Present Today" value={dashboardStats.presentToday} icon={Icons.checkCircle} color="bg-green-500" />
-            <StatCard title="Absent Today" value={dashboardStats.absentToday} icon={Icons.xCircle} color="bg-red-500" />
-            <StatCard title="Attendance Rate" value={`${dashboardStats.attendancePercentage}%`} icon={Icons.reports} color="bg-primary-500" />
+            <div className="animate-fade-in-up" style={{ animationDelay: `${statCardDelay}ms` }}>
+                <StatCard title="Present Today" value={dashboardStats.presentToday} icon={Icons.checkCircle} color="bg-green-500" />
+            </div>
+            <div className="animate-fade-in-up" style={{ animationDelay: `${statCardDelay + 100}ms` }}>
+                <StatCard title="Absent Today" value={dashboardStats.absentToday} icon={Icons.xCircle} color="bg-red-500" />
+            </div>
+            <div className="animate-fade-in-up" style={{ animationDelay: `${statCardDelay + 200}ms` }}>
+                <StatCard title="Attendance Rate" value={`${dashboardStats.attendancePercentage}%`} icon={Icons.reports} color="bg-primary-500" />
+            </div>
         </div>
       )}
 
       <div>
-         <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-4">Quick Actions</h2>
+         <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-4 animate-fade-in-up" style={{ animationDelay: `${quickActionTitleDelay}ms` }}>Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {user?.role !== Role.SUPER_ADMIN && (
                 <>
-                    <ActionCard title="Mark Attendance" description="Use facial recognition to log attendance." icon={Icons.attendance} onClick={() => setPage('AttendanceLog')} />
-                    <ActionCard title="View Reports" description="Analyze attendance data and export." icon={Icons.reports} onClick={() => setPage('Reports')} />
+                    <div className="animate-fade-in-up" style={{ animationDelay: `${quickActionBaseDelay}ms` }}>
+                        <ActionCard title="Mark Attendance" description="Use facial recognition to log attendance." icon={Icons.attendance} onClick={() => setPage('AttendanceLog')} />
+                    </div>
+                    <div className="animate-fade-in-up" style={{ animationDelay: `${quickActionBaseDelay + 100}ms` }}>
+                        <ActionCard title="View Reports" description="Analyze attendance data and export." icon={Icons.reports} onClick={() => setPage('Reports')} />
+                    </div>
                 </>
             )}
             
             {user && [Role.SUPER_ADMIN, Role.PRINCIPAL, Role.HOD, Role.FACULTY].includes(user.role) && (
-              <ActionCard title="Manage Users" description="Add, edit, or remove system users." icon={Icons.users} onClick={() => setPage('ManageUsers')} />
+              <div className="animate-fade-in-up" style={{ animationDelay: `${quickActionBaseDelay + (user.role === Role.SUPER_ADMIN ? 0 : 200)}ms` }}>
+                <ActionCard title="Manage Users" description="Add, edit, or remove system users." icon={Icons.users} onClick={() => setPage('ManageUsers')} />
+              </div>
             )}
             
             {user?.role === Role.STAFF ? (
-                <ActionCard title="Submit Feedback" description="Report issues or suggest improvements." icon={Icons.feedback} onClick={() => setPage('Feedback')} />
+                <div className="animate-fade-in-up" style={{ animationDelay: `${quickActionBaseDelay + 300}ms` }}>
+                    <ActionCard title="Submit Feedback" description="Report issues or suggest improvements." icon={Icons.feedback} onClick={() => setPage('Feedback')} />
+                </div>
             ) : user?.role !== Role.SUPER_ADMIN ? (
                  isAiAvailable ? (
-                    <ActionCard title="CogniCraft AI" description="AI tools for faculty and students." icon={Icons.cogniCraft} onClick={() => setPage('CogniCraft AI')} />
+                    <div className="animate-fade-in-up" style={{ animationDelay: `${quickActionBaseDelay + 300}ms` }}>
+                        <ActionCard title="CogniCraft AI" description="AI tools for faculty and students." icon={Icons.cogniCraft} onClick={() => setPage('CogniCraft AI')} />
+                    </div>
                 ) : (
-                    <div className="group bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg text-left w-full cursor-not-allowed opacity-60" title="CogniCraft AI is not configured by the administrator">
+                    <div className="group bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg text-left w-full cursor-not-allowed opacity-60 animate-fade-in-up" style={{ animationDelay: `${quickActionBaseDelay + 300}ms` }} title="CogniCraft AI is not configured by the administrator">
                         <Icons.cogniCraft className="h-10 w-10 text-slate-400 mb-4" />
                         <h3 className="text-lg font-semibold text-slate-500 dark:text-slate-400">CogniCraft AI</h3>
                         <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Service unavailable.</p>
@@ -289,17 +314,17 @@ const DashboardPage: React.FC = () => {
       </div>
      
 
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg animate-fade-in-up" style={{ animationDelay: `${notificationDelay}ms` }}>
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Notifications</h3>
         <ul className="space-y-4">
-          <li className="flex items-start space-x-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
+          <li className="flex items-start space-x-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 animate-fade-in-up" style={{ animationDelay: `${notificationDelay + 100}ms` }}>
             <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-full mt-1"><Icons.timetable className="h-5 w-5 text-blue-500" /></div>
             <div>
               <p className="font-medium text-slate-900 dark:text-white">Timetable updated for CS Branch.</p>
               <p className="text-sm text-slate-500 dark:text-slate-400">2 hours ago</p>
             </div>
           </li>
-          <li className="flex items-start space-x-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
+          <li className="flex items-start space-x-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 animate-fade-in-up" style={{ animationDelay: `${notificationDelay + 200}ms` }}>
             <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-full mt-1"><Icons.applications className="h-5 w-5 text-amber-500" /></div>
             <div>
               <p className="font-medium text-slate-900 dark:text-white">New leave application from EC Student 3.</p>
@@ -343,6 +368,7 @@ const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = (
         case 'Reports': return <ReportsPage />;
         case 'ManageUsers': return <ManageUsersPage user={user} />;
         case 'Applications': return <ApplicationsPage user={user} />;
+        case 'TodoList': return <TodoListPage />;
         case 'CogniCraft AI': return <NotebookLLMPage />;
         case 'SBTETResults': return <SBTETResultsPage user={user} />;
         case 'Syllabus': return <SyllabusPage user={user} />;
@@ -414,7 +440,7 @@ const AuthenticatedApp: React.FC = () => {
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden md:ml-64">
                 <Header />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto animate-fade-in [animation-delay:200ms]">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto">
                     <PageRenderer refreshDashboardStats={refreshDashboardStats} />
                 </main>
             </div>

@@ -89,6 +89,15 @@ export interface Application {
   created_at: string;        // ISO 8601 timestamp of when the application was created.
 }
 
+// Interface for a To-Do list item.
+export interface TodoItem {
+  id: string;
+  userId: string;
+  text: string;
+  completed: boolean;
+  createdAt: string;
+}
+
 // A type alias for all the possible page names in the application.
 // This is used for navigation and routing within the main app component.
 export type Page = 
@@ -96,7 +105,8 @@ export type Page =
   | 'Reports' 
   | 'AttendanceLog' 
   | 'ManageUsers' 
-  | 'Applications' 
+  | 'Applications'
+  | 'TodoList'
   | 'SBTETResults' 
   | 'Syllabus' 
   | 'Timetables' 

@@ -1,11 +1,10 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { User, AttendanceRecord } from '../types';
-// FIX: Import the 'Branch' enum to be used in the component.
-import { Branch, Role } from '../types';
-// FIX: The AI service for face verification is exported as `cogniCraftService`, not `geminiService`.
-import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService } from '../services';
+import { Branch, Role } from '../types'; // FIX: Imported Branch and Role enums
+import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService } from '../services'; // FIX: Changed geminiService to cogniCraftService
 import { Icons } from '../constants';
-import { Modal } from '../components';
+import { Modal } from './components';
 import { useAppContext } from '../App';
 
 // --- LOCAL ICONS ---
@@ -169,7 +168,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
 
     const [mode, setMode] = useState<AttendanceMode>(user.role === Role.STUDENT ? 'self' : 'student');
     const [step, setStep] = useState<'capture' | 'verifying' | 'result'>('capture');
-    const [pinParts, setPinParts] = useState({ prefix: user.college_code ? `23${user.college_code}` : '23210', branch: 'EC', roll: '' });
+    const [pinParts, setPinParts] = useState({ prefix: user.college_code ? `23${user.college_code}` : '23210', branch: Branch.EC, roll: '' });
     const [userToVerify, setUserToVerify] = useState<User | null>(null);
     const [attendanceResult, setAttendanceResult] = useState<AttendanceRecord | null>(null);
     const [historicalData, setHistoricalData] = useState<AttendanceRecord[]>([]);
@@ -478,7 +477,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
     const reset = () => {
         setStep('capture');
         setUserToVerify(null);
-        setPinParts({ prefix: '23210', branch: 'EC', roll: '' });
+        setPinParts({ prefix: '23210', branch: Branch.EC, roll: '' });
         setAttendanceResult(null);
         setHistoricalData([]);
         setCameraStatus('idle');
@@ -677,7 +676,7 @@ const AttendanceLogPage: React.FC<{ user: User; refreshDashboardStats: () => Pro
                         {['25210', '24210', '23210', '22210', '21210', '23211'].map(prefix => (<option key={prefix} value={prefix} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{prefix}</option>))}
                     </select>
                     <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
-                    <select value={pinParts.branch} onChange={e => {setUserToVerify(null); setStudentAlreadyMarked(false); setPinParts(p => ({...p, branch: e.target.value, roll: ''}));}} className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold">
+                    <select value={pinParts.branch} onChange={e => {setUserToVerify(null); setStudentAlreadyMarked(false); setPinParts(p => ({...p, branch: e.target.value as Branch, roll: ''}));}} className="bg-transparent appearance-none outline-none cursor-pointer text-slate-800 dark:text-white font-semibold">
                         {Object.values(Branch).map(b => <option key={b} value={b} className="bg-slate-200 dark:bg-slate-800 font-sans font-medium">{b}</option>)}
                     </select>
                     <span className="mx-3 text-slate-400 dark:text-slate-500">/</span>
