@@ -1,10 +1,11 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { User, AttendanceRecord } from '../types';
 import { Branch, Role } from '../types'; // FIX: Imported Branch and Role enums
 import { getStudentByPin, markAttendance, getAttendanceForUser, getTodaysAttendanceForUser, sendEmail, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM, cogniCraftService } from '../services'; // FIX: Changed geminiService to cogniCraftService
 import { Icons } from '../constants';
-import { Modal } from './components';
+import { Modal } from './components.tsx';
 import { useAppContext } from '../App';
 
 // --- LOCAL ICONS ---

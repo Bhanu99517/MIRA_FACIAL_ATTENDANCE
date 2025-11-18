@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { User, AppSettings } from '../types';
 import { getSettings, updateSettings, updateUser, cogniCraftService } from '../services';
@@ -15,7 +16,7 @@ const SettingsSection: React.FC<{ title: string; description: string; children: 
 
 const ToggleSwitch: React.FC<{ label: string; enabled: boolean; onChange: (enabled: boolean) => void }> = ({ label, enabled, onChange }) => (
     <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm font-medium">Labeel</span>
         <button
             onClick={() => onChange(!enabled)}
             className={`${enabled ? 'bg-primary-600' : 'bg-slate-300 dark:bg-slate-600'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}

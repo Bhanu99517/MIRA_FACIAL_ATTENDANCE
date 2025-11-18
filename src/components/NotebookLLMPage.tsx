@@ -44,7 +44,21 @@ function bufferToWave(abuffer: AudioBuffer, len: number) {
       length = len * numOfChan * 2 + 44,
       buffer = new ArrayBuffer(length),
       view = new DataView(buffer),
-      channels = [], i, sample, offset = 0, pos = 0;
+      channels = [], 
+      i, 
+      sample, 
+      offset = 0, 
+      pos = 0;
+
+  const setUint16 = (data: number) => {
+    view.setUint16(pos, data, true);
+    pos += 2;
+  };
+
+  const setUint32 = (data: number) => {
+    view.setUint32(pos, data, true);
+    pos += 4;
+  };
 
   // write WAVE header
   setUint32(0x46464952);                         // "RIFF"
@@ -78,16 +92,6 @@ function bufferToWave(abuffer: AudioBuffer, len: number) {
   }
 
   return new Blob([buffer], {type: "audio/wav"});
-
-  function setUint16(data: number) {
-    view.setUint16(pos, data, true);
-    pos += 2;
-  }
-
-  function setUint32(data: number) {
-    view.setUint32(pos, data, true);
-    pos += 4;
-  }
 }
 
 const OutputDisplay: React.FC<{ output: LLMOutput }> = ({ output }) => {
@@ -295,7 +299,9 @@ const NotebookLLMPage: React.FC = () => {
                 case 'research': result = await cogniCraftService.research(inputText); break;
                 case 'tts': {
                     const audioBase64 = await cogniCraftService.generateSpeech(inputText);
-                    const audioContext = new (window.AudioContext)({ sampleRate: 24000 });
+                    // FIX: Safer AudioContext instantiation
+                    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                    const audioContext = new AudioContext({ sampleRate: 24000 });
                     const audioBuffer = await decodeAudioData(decode(audioBase64), audioContext, 24000, 1);
                     const wavBlob = bufferToWave(audioBuffer, audioBuffer.length);
                     const audioDataUrl = URL.createObjectURL(wavBlob);

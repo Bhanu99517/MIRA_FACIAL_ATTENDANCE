@@ -3,8 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, addUser, updateUser, deleteUser } from '../services';
 import type { User } from '../types';
 import { Role } from '../types';
-import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon, KeyIcon, LockClosedIcon, LockOpenIcon } from './Icons';
-import { RolePill } from './components';
+import { PlusIcon, EditIcon, DeleteIcon, IdCardIcon, KeyIcon, LockClosedIcon, LockOpenIcon } from './Icons.tsx';
+import { RolePill } from './components.tsx';
 
 const createAvatar = (seed: string) => `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 

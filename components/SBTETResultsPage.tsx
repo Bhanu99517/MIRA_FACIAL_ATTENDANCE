@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { User, SBTETResult } from '../types';
 import { Role } from '../types';
@@ -7,7 +8,7 @@ import { Icons } from '../constants';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Modal } from './components';
+import { Modal } from './components.tsx';
 import { useAppContext } from '../App';
 
 const SummaryStatCard: React.FC<{ title: string; value: string | number; icon: React.ElementType }> = ({ title, value, icon: Icon }) => (

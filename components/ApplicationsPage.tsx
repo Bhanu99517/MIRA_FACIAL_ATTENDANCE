@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Application, User } from '../types';
 import { Role, ApplicationType, ApplicationStatus } from '../types';
@@ -11,7 +12,7 @@ import {
 } from '../services';
 import { Icons } from '../constants';
 import { useAppContext } from '../App';
-import StatusChecker from './StatusChecker';
+import StatusChecker from './StatusChecker.tsx';
 
 // --- Shared Components & Utilities ---
 const inputClasses = "mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition";
