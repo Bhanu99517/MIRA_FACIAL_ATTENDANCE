@@ -1,5 +1,5 @@
 // src/constants.tsx
-import img1 from './images/app.png';
+
 // Import React to define React components.
 import React from 'react';
 // Import the Page type to provide type safety for navigation link names.
