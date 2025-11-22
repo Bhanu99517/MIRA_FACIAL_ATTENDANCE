@@ -13,7 +13,7 @@ export const Icons = {
   logoWithText: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} viewBox="0 0 160 32" xmlns="http://www.w3.org/2000/svg">
       {/* The logo image is an external file. For production, consider embedding or using a more robust asset pipeline. */}
-      <image href="./app.png" x="0" y="0" height="32" width="32" />
+      <image href="./logo.png" x="0" y="0" height="32" width="32" />
       {/* The text part of the logo. 'currentColor' allows the fill color to be controlled by CSS text color. */}
       <text x="40" y="22" fontFamily="Inter, sans-serif" fontSize="18" fontWeight="bold" fill="currentColor" className="text-slate-800 dark:text-white">
         Mira Attendance
@@ -23,7 +23,7 @@ export const Icons = {
   // Icon-only version of the logo, used in the sidebar.
   logoIcon: (props: React.SVGProps<SVGSVGElement>) => (
      <svg {...props} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-      <image href="./app.png" x="0" y="0" height="32" width="32" />
+      <image href="./logo.png" x="0" y="0" height="32" width="32" />
     </svg>
   ),
   // Dashboard icon for the navigation menu.
