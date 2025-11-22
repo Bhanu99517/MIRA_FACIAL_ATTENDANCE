@@ -14,16 +14,13 @@ This system is designed for **colleges and institutions** with role-based contro
 ## 🚀 Features
 
 ### 👤 **Authentication & Roles**
-- Super Admin login  
-  - **PIN:** `NANIBHANU-123`  
-  - **Password:** `9347856661`
+- Super Admin login 
 - OTP-based secure login for Admins (via Gmail service)
 - Role-based access control (RBAC)
 
 ---
 
 ## 📷 **Face Recognition Based Attendance**
-- Face detection using **YOLO / AI Studio Vision**  
 - Student’s attendance is marked **only if reference image exists**
 - Upload, manage, and verify reference images
 - Prevents duplicate or invalid attendance
