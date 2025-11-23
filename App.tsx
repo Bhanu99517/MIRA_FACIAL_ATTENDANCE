@@ -13,7 +13,6 @@ import TimetablesPage from './components/TimetablesPage';
 import FeedbackPage from './components/FeedbackPage';
 import SettingsPage from './components/SettingsPage';
 import NotebookLLMPage from './components/NotebookLLMPage';
-import TodoListPage from './components/TodoListPage';
 import Header from './components/Header';
 import { navLinks, Icons } from './constants.tsx'; // MODIFIED LINE
 import LandingPage from './components/LandingPage';
