@@ -366,8 +366,7 @@ const PageRenderer: React.FC<{ refreshDashboardStats: () => Promise<void> }> = (
         case 'AttendanceLog': return <AttendanceLogPage user={user} refreshDashboardStats={refreshDashboardStats} />;
         case 'Reports': return <ReportsPage />;
         case 'ManageUsers': return <ManageUsersPage user={user} />;
-        case 'Applications': return <ApplicationsPage user={user} />;
-        case 'TodoList': return <TodoListPage />;
+        case 'Applications': return <ApplicationsPage user={user} />
         case 'CogniCraft AI': return <NotebookLLMPage />;
         case 'SBTETResults': return <SBTETResultsPage user={user} />;
         case 'Syllabus': return <SyllabusPage user={user} />;
