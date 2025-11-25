@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { User, AttendanceRecord } from '../types';
 import { Branch } from '../types';
 import { getStudentByPin, markAttendance, getTodaysAttendanceForUser, cogniCraftService, getDistanceInKm, CAMPUS_LAT, CAMPUS_LON, CAMPUS_RADIUS_KM } from '../services';
 import { Icons } from '../constants';
-import { Modal } from '../components';
+import { Modal } from './components';
 
 const adjustContrast = (ctx: CanvasRenderingContext2D, contrast: number): void => {
     const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);

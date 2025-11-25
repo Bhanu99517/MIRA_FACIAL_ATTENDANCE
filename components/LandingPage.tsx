@@ -1,3 +1,4 @@
+
 // src/components/LandingPage.tsx
 // This component serves as the public-facing entry point for students and visitors.
 // It provides quick access to check academic information without needing to log in.
@@ -7,7 +8,7 @@ import React, { useState } from 'react';
 // Import the centralized Icons object.
 import { Icons } from '../constants';
 // Import the shared Modal component.
-import { Modal } from '../components';
+import { Modal } from './components';
 // Import the specific "checker" components that will be displayed inside the modals.
 import StatusChecker from './StatusChecker';
 import SBTETResultChecker from './SBTETResultChecker';

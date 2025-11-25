@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { User, SBTETResult } from '../types';
 import { Role } from '../types';
@@ -6,6 +8,7 @@ import { Icons } from '../constants';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Modal } from './components.tsx';
 import { useAppContext } from '../App';
 
 const SummaryStatCard: React.FC<{ title: string; value: string | number; icon: React.ElementType }> = ({ title, value, icon: Icon }) => (
@@ -308,7 +311,7 @@ const SBTETResultsPage: React.FC<{ user: User }> = ({ user: initialUser }) => {
                                         cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
                                         contentStyle={{ backgroundColor: 'var(--bg-card, #fff)', border: '1px solid var(--border-color, #ccc)' }}
                                      />
-                                    <Legend />
+                                    <Legend iconType="circle"/>
                                     <Bar dataKey="SGPA" fill="var(--primary-color, #3b82f6)" />
                                 </BarChart>
                             </ResponsiveContainer>

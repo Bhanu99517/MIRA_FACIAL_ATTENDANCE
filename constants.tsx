@@ -13,7 +13,7 @@ export const Icons = {
   logoWithText: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} viewBox="0 0 160 32" xmlns="http://www.w3.org/2000/svg">
       {/* The logo image is an external file. For production, consider embedding or using a more robust asset pipeline. */}
-      <image href="/app.png" x="0" y="0" height="32" width="32" />
+      <image href="./logo.png" x="0" y="0" height="32" width="32" />
       {/* The text part of the logo. 'currentColor' allows the fill color to be controlled by CSS text color. */}
       <text x="40" y="22" fontFamily="Inter, sans-serif" fontSize="18" fontWeight="bold" fill="currentColor" className="text-slate-800 dark:text-white">
         Mira Attendance
@@ -23,7 +23,7 @@ export const Icons = {
   // Icon-only version of the logo, used in the sidebar.
   logoIcon: (props: React.SVGProps<SVGSVGElement>) => (
      <svg {...props} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-      <image href="/app.png" x="0" y="0" height="32" width="32" />
+      <image href="./logo.png" x="0" y="0" height="32" width="32" />
     </svg>
   ),
   // Dashboard icon for the navigation menu.
@@ -63,6 +63,12 @@ export const Icons = {
   applications: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" fill="currentColor" fillOpacity="0.1" />
+    </svg>
+  ),
+  // To-Do list icon.
+  todo: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   ),
   // Results icon, for SBTET results.
@@ -332,6 +338,7 @@ export const navLinks = [
     links: [
       // Each link has a name (which must match a 'Page' type) and an icon component from the Icons object.
       { name: 'Dashboard' as Page, icon: Icons.dashboard },
+      { name: 'TodoList' as Page, icon: Icons.todo },
       { name: 'Reports' as Page, icon: Icons.reports },
       { name: 'AttendanceLog' as Page, icon: Icons.attendance },
       { name: 'ManageUsers' as Page, icon: Icons.users },
