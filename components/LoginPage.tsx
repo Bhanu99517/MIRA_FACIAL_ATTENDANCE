@@ -108,7 +108,10 @@ const LoginPage: React.FC = () => {
                 {loginStep === 'credentials' ? (
                     <>
                         <div className="text-center mb-8">
-                            <Icons.logoWithText className="w-48 h-auto mx-auto animate-logo-breath" />
+                            <div className="flex flex-col items-center gap-3">
+                                <Icons.logoIcon className="w-16 h-16 text-primary-500 animate-logo-breath" />
+                                <h1 className="text-3xl font-bold text-white tracking-tight">Mira Attendance</h1>
+                            </div>
                         </div>
                         
                         {/* Tab buttons to switch between PIN and QR login methods. */}
