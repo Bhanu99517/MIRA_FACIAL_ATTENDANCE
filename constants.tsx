@@ -15,7 +15,7 @@ export const Icons = {
     <svg {...props} viewBox="0 0 160 32" xmlns="http://www.w3.org/2000/svg">
       <image href={appLogo} x="0" y="0" height="32" width="32" />
       <text x="40" y="22" fontFamily="Inter, sans-serif" fontSize="18" fontWeight="bold" fill="currentColor" className="text-slate-800 dark:text-white">
-       <h1 > Mira Attendance<h1 />
+        Mira Attendance
       </text>
     </svg>
   ),
