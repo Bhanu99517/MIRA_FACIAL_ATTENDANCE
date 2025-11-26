@@ -4,7 +4,8 @@
 import React from 'react';
 // Import the Page type to provide type safety for navigation link names.
 import { Page } from './types';
-
+import appLogo from './app.png';
+import appLogo from '../assets/app.png'; // adjust path as needed
 // The Icons object centralizes all SVG icons used in the application.
 // Each icon is a functional React component that accepts SVG props, allowing for easy customization (e.g., className, size).
 // This approach makes icons reusable and easy to manage.
@@ -12,9 +13,7 @@ export const Icons = {
   // Logo with text, used in headers and splash screens.
   logoWithText: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} viewBox="0 0 160 32" xmlns="http://www.w3.org/2000/svg">
-      {/* The logo image is an external file. For production, consider embedding or using a more robust asset pipeline. */}
-      <image href="./logo.png" x="0" y="0" height="32" width="32" />
-      {/* The text part of the logo. 'currentColor' allows the fill color to be controlled by CSS text color. */}
+      <image href={appLogo} x="0" y="0" height="32" width="32" />
       <text x="40" y="22" fontFamily="Inter, sans-serif" fontSize="18" fontWeight="bold" fill="currentColor" className="text-slate-800 dark:text-white">
         Mira Attendance
       </text>
@@ -23,7 +22,7 @@ export const Icons = {
   // Icon-only version of the logo, used in the sidebar.
   logoIcon: (props: React.SVGProps<SVGSVGElement>) => (
      <svg {...props} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-      <image href="./logo.png" x="0" y="0" height="32" width="32" />
+      <image href="/app.png" x="0" y="0" height="32" width="32" />
     </svg>
   ),
   // Dashboard icon for the navigation menu.
