@@ -149,7 +149,7 @@ const LoginPage: React.FC = () => {
                     // The OTP verification form.
                     <div className="animate-fade-in">
                         <h2 className="text-xl font-semibold text-center text-slate-200 mb-2">Email Verification</h2>
-                        <p className="text-slate-400 text-center mb-6">An OTP has been sent to bhanu***@gmail.com. Please enter it below.</p>
+                        <p className="text-slate-400 text-center mb-6">An OTP has been sent to registered email. Please enter it below.</p>
                         <form onSubmit={handleOtpSubmit}>
                             <div>
                                 <label className="text-sm font-medium text-slate-300">Enter OTP</label>
