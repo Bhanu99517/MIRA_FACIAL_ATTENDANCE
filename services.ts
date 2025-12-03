@@ -2,6 +2,34 @@ import { User, Role, Branch, AttendanceRecord, Application, PPTContent, QuizCont
 import { aiClientState } from './geminiClient';
 import { Type } from '@google/genai';
 
+// src/services.ts
+import { Student, AttendanceRecord, ApiResponse } from "./types";
+
+// ---------- ATTENDANCE API ----------
+
+export const apiMarkAttendance = async (payload: {
+  studentId: string;
+  subjectId?: string;
+  latitude: number;
+  longitude: number;
+}): Promise<ApiResponse<AttendanceRecord | null>> => {
+  const base = getBackendBaseUrl();
+  const res = await fetch(`${base}/api/attendance/mark`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    // backend will send message like "outside campus" etc.
+    throw new Error(data.message || "Failed to mark attendance");
+  }
+
+  return data;
+};
+
 // --- MOCK STORAGE SERVICE ---
 class MockStorage {
     private store: Map<string, any> = new Map();
