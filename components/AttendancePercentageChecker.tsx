@@ -1,5 +1,9 @@
 // src/components/AttendancePercentageChecker.tsx
 // This component provides a public-facing tool for students to quickly check their overall attendance percentage by entering their PIN.
+import { useState } from "react";
+import { getCurrentPosition } from "../../geolocation"; // adjust ../ if needed
+import { isInsideCampus } from "../../geofence";
+import { apiMarkAttendance } from "../../services";
 
 // Import React and the useState hook.
 import React, { useState } from 'react';
