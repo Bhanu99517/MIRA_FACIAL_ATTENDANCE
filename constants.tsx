@@ -21,7 +21,7 @@ export const Icons = {
   ),
   // Icon-only version of the logo, used in the sidebar.
   logoIcon: (props: React.SVGProps<SVGSVGElement>) => (
-     <svg {...props} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+     <svg {...props} viewBox="0 0 52 48" xmlns="http://www.w3.org/2000/svg">
       <image href="/app.png" x="0" y="0" height="32" width="32" />
     </svg>
   ),
