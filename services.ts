@@ -318,7 +318,7 @@ const studentData = [
     { pin: '23210-EC-063', name: 'CHINTHA VAMSHI KRISHNA' },
 
     // College 210 Students
-
+    
     // College 002 Students
     { pin: '23002-EC-001', name: 'SRIJA RAO' }, { pin: '23002-EC-002', name: 'VINAY' },
     { pin: '23002-CS-001', name: 'DIYA MEHTA' }, { pin: '23002-CS-002', name: 'SANA KHAN' },
