@@ -5,7 +5,7 @@ import React from 'react';
 // Import the Page type to provide type safety for navigation link names.
 import { Page } from './types';
 import appLogo from './app.png';
-import appLogo from '../assets/app.png'; // adjust path as needed
+import appLogo from '../public/app.png'; // adjust path as needed
 // The Icons object centralizes all SVG icons used in the application.
 // Each icon is a functional React component that accepts SVG props, allowing for easy customization (e.g., className, size).
 // This approach makes icons reusable and easy to manage.
