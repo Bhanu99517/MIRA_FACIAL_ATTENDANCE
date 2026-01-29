@@ -294,7 +294,7 @@ const studentData = [
     { pin: '23210-EC-035', name: 'BANDI RUTHIK' },
     { pin: '23210-EC-036', name: 'PEDDA PATLLOLLA RISHIDER REDDY' },
     { pin: '23210-EC-037', name: 'DUBBAKA ADITHYA' },
-    { pin: '23210-EC-038', name: 'G.BHANU PRAKASH ' },
+    { pin: '23210-EC-038', name: 'GUBBALA BHANU PRAKASH ' },
     { pin: '23210-EC-039', name: 'PULI SAI RAJ' },
     { pin: '23210-EC-041', name: 'RATHOD SANGRAM' },
     { pin: '23210-EC-042', name: 'MA NADEEM' },
